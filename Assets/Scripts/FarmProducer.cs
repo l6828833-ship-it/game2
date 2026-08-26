@@ -16,17 +16,22 @@ namespace MiniMart
 
         private readonly System.Collections.Generic.List<Transform> harvestVisuals = new System.Collections.Generic.List<Transform>();
         private int availableCount;
+        private int sourceCapacity;
+        private bool centreItems;
         private float restHeight;
         private float regrowTimer;
         private float regrowDuration = 6f;
 
         public void Initialise(ProductKind kind, string label, Color color,
-            float modelHeight = 0f, float restHeight = 0.5f, bool showMarker = false)
+            float modelHeight = 0f, float restHeight = 0.5f, bool showMarker = false,
+            int itemCount = PlotCapacity, bool centreItems = false)
         {
             Product = kind;
             Label = label;
             this.restHeight = restHeight;
-            availableCount = PlotCapacity;
+            sourceCapacity = Mathf.Clamp(itemCount, 1, PlotCapacity);
+            this.centreItems = centreItems;
+            availableCount = sourceCapacity;
             MiniMartGameManager game = MiniMartGameManager.Instance;
             Material output = game.MaterialFor("FarmOutput_" + kind, color);
 
@@ -37,13 +42,15 @@ namespace MiniMart
                 marker.transform.localPosition = new Vector3(0f, 0.08f, 0f);
             }
 
-            for (int index = 0; index < PlotCapacity; index++)
+            for (int index = 0; index < sourceCapacity; index++)
             {
                 Transform produce = SpawnHarvestItem(game, output, modelHeight);
                 int row = index / 2;
                 int column = index % 2;
                 produce.name = label + "_Harvest_" + (index + 1);
-                produce.localPosition = new Vector3(-0.50f + column * 1.00f, this.restHeight + row * 0.08f, -0.30f + row * 0.60f);
+                produce.localPosition = centreItems
+                    ? new Vector3(0f, this.restHeight, 0f)
+                    : new Vector3(-0.50f + column * 1.00f, this.restHeight + row * 0.08f, -0.30f + row * 0.60f);
                 produce.localRotation = Quaternion.Euler(0f, index * 48f, 0f);
                 harvestVisuals.Add(produce);
             }
@@ -78,10 +85,10 @@ namespace MiniMart
             regrowTimer -= Time.deltaTime;
             if (regrowTimer > 0f) return;
 
-            availableCount = PlotCapacity;
+            availableCount = sourceCapacity;
             foreach (Transform item in harvestVisuals) if (item != null) item.gameObject.SetActive(true);
             if (ReadySound.HasValue) MiniMartGameManager.Instance.Sfx.Play(ReadySound.Value);
-            MiniMartGameManager.Instance.UI.SetNotification(Label + " grew 4 fresh items!", 1.4f);
+            MiniMartGameManager.Instance.UI.SetNotification(Label + " produced " + sourceCapacity + " fresh " + (sourceCapacity == 1 ? "item!" : "items!"), 1.4f);
         }
 
         public bool TryHarvest()

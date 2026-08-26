@@ -60,7 +60,7 @@ namespace MiniMart
             productColors[ProductKind.Chips] = new Color(1f, 0.82f, 0.16f);
             productColors[ProductKind.Water] = new Color(0.22f, 0.72f, 1f);
             productColors[ProductKind.Cookies] = new Color(0.53f, 0.28f, 0.12f);
-            productColors[ProductKind.Egg] = new Color(1f, 0.96f, 0.74f);
+            productColors[ProductKind.Egg] = new Color(1f, 0.66f, 0.38f);
             productColors[ProductKind.Tomato] = new Color(0.91f, 0.24f, 0.20f);
             productColors[ProductKind.Watermelon] = new Color(0.36f, 0.66f, 0.28f);
             productColors[ProductKind.Banana] = new Color(0.98f, 0.82f, 0.24f);
@@ -107,7 +107,8 @@ namespace MiniMart
             BuildCropBed(new Vector3(-18f, 0f, 3.6f), "Tomato_Bed", soil, ProductKind.Tomato, new Color(0.91f, 0.24f, 0.20f));
             BuildCropBed(new Vector3(-14.2f, 0f, 3.6f), "Melon_Bed", soil, ProductKind.Watermelon, new Color(0.36f, 0.66f, 0.28f));
             BuildCropBed(new Vector3(-18f, 0f, 0.25f), "Banana_Bed", soil, ProductKind.Banana, new Color(0.98f, 0.82f, 0.24f));
-            // Farm production is limited to the three supplied crop plots; no nest or loose collection point is spawned.
+            BuildChickenNest(new Vector3(-14.2f, 0f, 0.15f));
+            // Each farm source is a visible asset: soil plots for crops and one nest for eggs.
             BuildFenceLine(new Vector3(-20.3f, 0f, 2.1f), new Vector3(0f, 0f, 8.8f), fence, 6);
             BuildFenceLine(new Vector3(-16f, 0f, 6.5f), new Vector3(8.6f, 0f, 0f), fence, 6);
             CreatePrimitive(PrimitiveType.Cylinder, "Farm_Well", new Vector3(-11.2f, 0.48f, 3.4f), new Vector3(0.78f, 0.48f, 0.78f), MaterialFor("Well", new Color(0.48f, 0.62f, 0.66f)));
@@ -151,29 +152,26 @@ namespace MiniMart
             return pivot.transform;
         }
 
-        private void BuildChickenCoop(Vector3 position)
+        private void BuildChickenNest(Vector3 nestSpot)
         {
-            CreatePrimitive(PrimitiveType.Cube, "Chicken_Coop", position + new Vector3(0f, 0.55f, 0f), new Vector3(3f, 1.1f, 1.65f), MaterialFor("Coop", new Color(0.91f, 0.42f, 0.23f)));
-            CreatePrimitive(PrimitiveType.Cylinder, "Chicken_Coop_Roof", position + new Vector3(0f, 1.25f, 0f), new Vector3(1.9f, 0.22f, 1.2f), MaterialFor("CoopRoof", new Color(0.31f, 0.58f, 0.84f)));
-
-            // The nest is the harvest point: a straw bowl with the egg resting inside it.
-            Vector3 nestSpot = position + new Vector3(1.55f, 0f, -1.15f);
-            Transform nest = ModelKit.SpawnProp(null, ModelKit.NestModel, MaterialFor("NestStraw", new Color(0.83f, 0.66f, 0.34f)),
-                NestHeight, 3, ModelKit.ZUpFix);
+            // The uploaded OBJ is the actual egg source. A warm straw colour matches the supplied
+            // reference while keeping the woven shape visible under the game's directional light.
+            Transform nest = ModelKit.SpawnProp(null, "Props/FarmNest",
+                MaterialFor("NestStraw", new Color(0.78f, 0.51f, 0.20f)), 0.42f, 0, Vector3.zero);
             if (nest != null)
             {
                 nest.name = "Chicken_Nest";
                 nest.position = nestSpot;
             }
 
-            // The egg rests on the rim so it reads from the camera instead of hiding in the bowl.
-            FarmProducer eggs = CreateFarmProducer(nestSpot, ProductKind.Egg, "Eggs", new Color(1f, 0.96f, 0.74f),
-                EggHeight, nest != null ? NestHeight * 0.8f : 0.5f, nest == null);
+            // One peach egg rests in the centre of the nest. After collection, the same egg appears
+            // here again after its short regrow timer; it is not a crate or a separate pickup point.
+            FarmProducer eggs = CreateFarmProducer(nestSpot, ProductKind.Egg, "Nest egg", new Color(1f, 0.66f, 0.38f),
+                0.18f, nest != null ? 0.25f : 0.42f, false, 1, true);
             eggs.ReadySound = SfxKind.Cluck;
 
-            // One hen, keeping to her nest. She sits just behind it, which from this camera angle
-            // leaves the egg in clear view in front of her.
-            BuildChicken(nestSpot + new Vector3(0.06f, 0f, 0.42f), eggs, "Hen");
+            // The supplied chicken stays close to the nest with gentle pecking, turning, and bobbing.
+            BuildChicken(nestSpot + new Vector3(0.18f, 0f, 0.68f), eggs, "Nest_Chicken");
         }
 
         /// <summary>
@@ -245,9 +243,10 @@ namespace MiniMart
             GameObject root = new GameObject(name);
             root.transform.position = position;
 
-            // The FarmAnimals hen is Y up with forward +Z already, and her markings are vertex colours.
-            Transform body = ModelKit.SpawnProp(root.transform, ModelKit.ChickenModel,
-                VertexColorMaterial("Hen", new Color(0.96f, 0.93f, 0.86f)), ChickenHeight, 0, Vector3.zero);
+            // The uploaded low-poly chicken is Z up. It receives a cream body material matching
+            // the reference; its idle motion below supplies the small living movement around the nest.
+            Transform body = ModelKit.SpawnProp(root.transform, "Props/FarmChicken",
+                MaterialFor("NestChickenCream", new Color(0.97f, 0.90f, 0.72f)), ChickenHeight, 0, ModelKit.ZUpFix);
             if (body == null)
             {
                 // No imported hen: fall back to the primitive bird so the coop is not empty.
@@ -256,10 +255,11 @@ namespace MiniMart
                 return;
             }
 
-            body.name = "Hen_Body";
-            // Barely a patch at all: she shifts about on the nest rather than wandering off.
-            Rect patch = new Rect(position.x - 0.16f, position.z - 0.16f, 0.32f, 0.32f);
-            root.AddComponent<RoamingAnimal>().Initialise(body, patch, 0.22f, ChickenHeight * 0.05f, true, nest);
+            body.name = "Nest_Chicken_Body";
+            // A small patch keeps her beside the nest, with gentle pecking and a light bob rather
+            // than full roaming across the crop area.
+            Rect patch = new Rect(position.x - 0.22f, position.z - 0.20f, 0.44f, 0.40f);
+            root.AddComponent<RoamingAnimal>().Initialise(body, patch, 0.11f, ChickenHeight * 0.035f, true, nest);
         }
 
         private void BuildToyChicken(Vector3 position, string label)
@@ -314,7 +314,7 @@ namespace MiniMart
         {
             // Only the four farm products, doubled up. A shelf of something the farm cannot grow
             // would empty out and stay empty, since harvesting is the only way to restock.
-            ProductKind[] backRow = { ProductKind.Tomato, ProductKind.Watermelon, ProductKind.Banana, ProductKind.Tomato };
+            ProductKind[] backRow = { ProductKind.Tomato, ProductKind.Watermelon, ProductKind.Banana, ProductKind.Egg };
             ProductKind[] frontRow = { ProductKind.Banana, ProductKind.Tomato, ProductKind.Watermelon, ProductKind.Banana };
             for (int i = 0; i < StoreLayout.ShelfColumns.Length; i++)
             {
@@ -344,12 +344,13 @@ namespace MiniMart
         }
 
         private FarmProducer CreateFarmProducer(Vector3 position, ProductKind product, string label, Color color,
-            float modelHeight = 0f, float restHeight = 0.5f, bool showMarker = true)
+            float modelHeight = 0f, float restHeight = 0.5f, bool showMarker = true,
+            int itemCount = GameConfig.CarryCapacity, bool centreItems = false)
         {
             GameObject root = new GameObject("FarmHarvest_" + product);
             root.transform.position = position;
             FarmProducer producer = root.AddComponent<FarmProducer>();
-            producer.Initialise(product, label, color, modelHeight, restHeight, showMarker);
+            producer.Initialise(product, label, color, modelHeight, restHeight, showMarker, itemCount, centreItems);
             FarmProducers.Add(producer);
             return producer;
         }

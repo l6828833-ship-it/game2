@@ -44,8 +44,8 @@ namespace MiniMart
             switch (kind)
             {
                 case ProductKind.Egg:
-                    // Generated FBX: five LODs, Z up.
-                    visual = new Visual("Items/Egg", ModelKit.ZUpFix, 0.15f, 0.16f, 0.17f, 4, 3);
+                    // User-supplied nest egg: five LODs, Z up.
+                    visual = new Visual("Items/FarmNestEgg", ModelKit.ZUpFix, 0.14f, 0.15f, 0.16f, 4, 3);
                     return true;
                 case ProductKind.Banana:
                     visual = new Visual("Items/Banana", ModelKit.ZUpFix, 0.28f, 0.42f, 0.34f, 4, 3);
