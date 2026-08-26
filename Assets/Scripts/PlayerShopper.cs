@@ -16,6 +16,7 @@ namespace MiniMart
         private Transform leftArm;
         private Transform rightArm;
         private Transform carryVisual;
+        private ProductKind? carryVisualKind;
 
         private ProductKind? carrying;
         private int carryAmount;
@@ -337,19 +338,48 @@ namespace MiniMart
                 return;
             }
 
+            // Rebuild when the product changes: eggs use the supplied model, everything else a crate.
+            if (carryVisual != null && carryVisualKind != carrying)
+            {
+                Destroy(carryVisual.gameObject);
+                carryVisual = null;
+            }
             if (carryVisual == null)
             {
-                carryVisual = game.CreateDecor(PrimitiveType.Cube, "Carry_Crate", transform.position, Vector3.one,
-                    game.MaterialFor("Carry_" + carrying.Value, game.ProductColor(carrying.Value)), transform).transform;
+                carryVisual = BuildCarryVisual(game, carrying.Value);
+                carryVisualKind = carrying;
             }
 
             carryVisual.gameObject.SetActive(true);
-            carryVisual.localPosition = new Vector3(0f, 0.75f, 0.48f);
+            if (carrying.Value == ProductKind.Egg) return;
             float bulk = Mathf.Lerp(0.28f, 0.46f, Mathf.Clamp01(carryAmount / 12f));
             carryVisual.localScale = new Vector3(0.42f, bulk, 0.34f);
-            Renderer renderer = carryVisual.GetComponent<Renderer>();
-            if (renderer != null)
-                renderer.sharedMaterial = game.MaterialFor("Carry_" + carrying.Value, game.ProductColor(carrying.Value));
+        }
+
+        private Transform BuildCarryVisual(MiniMartGameManager game, ProductKind kind)
+        {
+            Material material = game.MaterialFor("Carry_" + kind, game.ProductColor(kind));
+
+            if (kind == ProductKind.Egg)
+            {
+                GameObject eggAsset = Resources.Load<GameObject>("Items/FarmEgg");
+                if (eggAsset != null)
+                {
+                    GameObject egg = Instantiate(eggAsset, transform);
+                    egg.name = "Carry_Item";
+                    egg.transform.localPosition = new Vector3(0f, 0.64f, 0.46f);
+                    egg.transform.localRotation = Quaternion.Euler(0f, 25f, 0f);
+                    egg.transform.localScale = Vector3.one * 0.20f;
+                    foreach (Renderer renderer in egg.GetComponentsInChildren<Renderer>(true)) renderer.sharedMaterial = material;
+                    foreach (Collider collider in egg.GetComponentsInChildren<Collider>(true)) Destroy(collider);
+                    return egg.transform;
+                }
+            }
+
+            GameObject crate = game.CreateDecor(PrimitiveType.Cube, "Carry_Item", transform.position,
+                new Vector3(0.42f, 0.36f, 0.34f), material, transform);
+            crate.transform.localPosition = new Vector3(0f, 0.70f, 0.46f);
+            return crate.transform;
         }
 
         private T FindClosest<T>(IEnumerable<T> candidates, float radius) where T : Component
