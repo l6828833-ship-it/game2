@@ -7,7 +7,7 @@ namespace MiniMart
     /// <summary>The shopkeeper: walks the farm and the shop floor, harvests crates and stocks shelves.</summary>
     public class PlayerShopper : MonoBehaviour
     {
-        private enum TargetKind { None, Harvest, Shelf, Upgrade, Checkout }
+        private enum TargetKind { None, Harvest, Shelf, Checkout }
 
         private const string StaticModelPath = "Characters/FarmPlayer";
 
@@ -34,7 +34,7 @@ namespace MiniMart
         private TargetKind targetKind;
         private FarmProducer targetFarm;
         private ShelfUnit targetShelf;
-        private UpgradeStation targetUpgrade;
+
 
         public ProductKind? Carrying => carrying;
         public int CarryAmount => carryAmount;
@@ -238,7 +238,6 @@ namespace MiniMart
             targetKind = TargetKind.None;
             targetFarm = null;
             targetShelf = null;
-            targetUpgrade = null;
 
             float range = GameConfig.InteractRange;
 
@@ -257,9 +256,6 @@ namespace MiniMart
                 targetShelf = ClosestShelfForCarry(range);
                 if (targetShelf != null) { targetKind = TargetKind.Shelf; return; }
             }
-
-            targetUpgrade = FindClosest(game.Upgrades, range);
-            if (targetUpgrade != null) { targetKind = TargetKind.Upgrade; return; }
 
             if (carrying != null)
             {
@@ -319,12 +315,8 @@ namespace MiniMart
                     StockShelf(targetShelf);
                     return;
 
-                case TargetKind.Upgrade:
-                    targetUpgrade.TryPurchase();
-                    return;
-
                 case TargetKind.Checkout:
-                    game.UI.SetNotification("The till scans shoppers on its own, just keep the shelves full.", 2f);
+                    game.UI.SetNotification("Just stand at the counter and the queue is served for you.", 2f);
                     return;
 
                 default:
@@ -402,12 +394,11 @@ namespace MiniMart
                         : "[E]  Stock " + GameConfig.ProductLabel(targetShelf.Product) + " shelf  (" + targetShelf.Stock + "/" + GameConfig.ShelfCapacity + ")";
                     return;
 
-                case TargetKind.Upgrade:
-                    Prompt = targetUpgrade.PromptText();
-                    return;
-
                 case TargetKind.Checkout:
-                    Prompt = "Till: " + game.Checkout.QueueLength + " in the queue";
+                    int queue = game.Checkout.QueueLength;
+                    Prompt = queue == 0
+                        ? "At the till. Shoppers get served while you stand here."
+                        : "Serving " + queue + (queue == 1 ? " shopper" : " shoppers") + "...";
                     return;
 
                 default:

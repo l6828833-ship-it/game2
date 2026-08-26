@@ -38,6 +38,7 @@ namespace MiniMart
         private Transform visual;
         private Transform moodLight;
         private Renderer moodRenderer;
+        private Vector3 moodBaseScale = Vector3.one;
         private Transform basketVisual;
         private ProductKind? basketProduct;
         private ShelfUnit targetShelf;
@@ -71,10 +72,13 @@ namespace MiniMart
             bodyHeight = 1.6f * Random.Range(0.93f, 1.05f);
             BuildBody(game, serial, tint);
 
-            GameObject mood = game.CreateDecor(PrimitiveType.Sphere, "Customer_Mood", transform.position,
-                new Vector3(0.2f, 0.2f, 0.2f), MoodMaterial(), visual);
-            mood.transform.localPosition = new Vector3(0f, bodyHeight + 0.22f, 0f);
+            // Only ever seen while this shopper is stuck at an unmanned till, so it starts hidden.
+            GameObject mood = game.CreateDecor(PrimitiveType.Sphere, "Customer_Waiting", transform.position,
+                new Vector3(0.22f, 0.22f, 0.22f), WaitingMaterial(game), visual);
+            mood.transform.localPosition = new Vector3(0f, bodyHeight + 0.24f, 0f);
+            mood.SetActive(false);
             moodLight = mood.transform;
+            moodBaseScale = moodLight.localScale;
             moodRenderer = mood.GetComponent<Renderer>();
 
             walkSpeed = Random.Range(1.25f, 1.65f);
@@ -214,23 +218,32 @@ namespace MiniMart
             BeginLeaving();
         }
 
+        /// <summary>
+        /// The marker is a call for service, not a mood meter: it shows up red only when this shopper
+        /// is at the till and nobody is behind the counter, and goes away the moment you arrive.
+        /// </summary>
         private void UpdateMood()
         {
             if (moodLight == null) return;
-            moodLight.localPosition = new Vector3(0f, bodyHeight + 0.22f + Mathf.Sin(Time.time * 2f + walkPhase) * 0.03f, 0f);
-            if (moodRenderer != null) moodRenderer.sharedMaterial = MoodMaterial();
+            MiniMartGameManager game = MiniMartGameManager.Instance;
+
+            bool waiting = state == CustomerState.Queuing
+                && game.Checkout != null
+                && !game.Checkout.IsAttended;
+
+            if (moodLight.gameObject.activeSelf != waiting) moodLight.gameObject.SetActive(waiting);
+            if (!waiting) return;
+
+            // Pulses faster as their patience runs down.
+            float urgency = Mathf.Lerp(9f, 3f, PatienceRatio);
+            float pulse = 1f + Mathf.Sin(Time.time * urgency) * 0.18f;
+            moodLight.localPosition = new Vector3(0f, bodyHeight + 0.24f + Mathf.Sin(Time.time * urgency) * 0.03f, 0f);
+            moodLight.localScale = moodBaseScale * pulse;
+            if (moodRenderer != null) moodRenderer.sharedMaterial = WaitingMaterial(game);
         }
 
-        private Material MoodMaterial()
-        {
-            MiniMartGameManager game = MiniMartGameManager.Instance;
-            float ratio = PatienceRatio;
-            if (state == CustomerState.Leaving && !hasItem && BasketValue <= 0)
-                return game.MaterialFor("MoodDone", new Color(0.72f, 0.76f, 0.80f));
-            if (ratio > 0.6f) return game.MaterialFor("MoodHappy", new Color(0.36f, 0.87f, 0.45f));
-            if (ratio > 0.3f) return game.MaterialFor("MoodWaiting", new Color(1f, 0.79f, 0.20f));
-            return game.MaterialFor("MoodAngry", new Color(0.95f, 0.26f, 0.25f));
-        }
+        private static Material WaitingMaterial(MiniMartGameManager game)
+            => game.MaterialFor("CustomerWaiting", new Color(0.95f, 0.20f, 0.20f));
 
         // ------------------------------------------------------------------- states
 

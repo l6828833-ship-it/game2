@@ -9,12 +9,6 @@ namespace MiniMart
     /// </summary>
     public partial class MiniMartGameManager
     {
-        private static readonly ProductKind[] ExtraShelfProducts =
-        {
-            ProductKind.Watermelon, ProductKind.Tomato, ProductKind.Banana, ProductKind.Tomato,
-            ProductKind.Tomato, ProductKind.Watermelon, ProductKind.Banana, ProductKind.Watermelon
-        };
-
         /// <summary>Prop sizes in metres. The nest is wide and shallow, so its height stays low.</summary>
         private const float NestHeight = 0.34f;
         private const float ChickenHeight = 0.46f;
@@ -23,26 +17,30 @@ namespace MiniMart
         /// <summary>Tilled plot thickness. Two of them side by side make up one crop bed.</summary>
         private const float PlotHeight = 0.55f;
 
+        // Ground plane. A Unity plane is ten units across at scale one, hence the 0.2 when the
+        // extent below is a half width.
+        private const float GroundCenterX = -2f;
+        private const float GroundCenterZ = -2f;
+        private const float GroundExtent = 62f;
+
+        /// <summary>
+        /// Nothing is planted inside this box. It covers the farm, the shop, the paddock and the
+        /// paths between them with room to spare, so no tree can end up somewhere the player walks.
+        /// </summary>
+        private static readonly Rect PlayArea = Rect.MinMaxRect(-23f, -15.5f, 19f, 10.5f);
+
+        /// <summary>How far past the play area trees are scattered. Beyond this the camera never sees them.</summary>
+        private const float WoodsDepth = 24f;
+
+        private const int TreeCount = 78;
+
+        /// <summary>Trunk heights in metres, per species, matching the model order in ModelKit.</summary>
+        private static readonly float[] TreeHeights = { 5.4f, 6.2f, 5.8f, 5.0f };
+
         /// <summary>
         /// Paddock bounds. The north rail sits at z = -7.2, clear of the store floor which starts at
         /// z = -6, so the fenced field never overlaps the shop or the farm.
         /// </summary>
-        private const float PastureNorthZ = -7.2f;
-        private const float PastureSouthZ = -13f;
-        private const float PastureWestX = -19f;
-        private const float PastureEastX = 13.5f;
-        private const float PastureCenterX = (PastureWestX + PastureEastX) * 0.5f;
-        private const float PastureCenterZ = (PastureNorthZ + PastureSouthZ) * 0.5f;
-        private const float PastureWidth = PastureEastX - PastureWestX;
-        private const float PastureDepth = PastureNorthZ - PastureSouthZ;
-
-        /// <summary>Free floor space for purchased shelves, in build order.</summary>
-        private static readonly Vector2[] ExtraShelfSlots =
-        {
-            new Vector2(6.4f, 1.7f), new Vector2(9.2f, 1.7f), new Vector2(12.0f, 1.7f), new Vector2(14.6f, 1.7f),
-            new Vector2(12.0f, 4.6f), new Vector2(14.6f, 4.6f), new Vector2(6.4f, -1.2f), new Vector2(9.2f, -1.2f)
-        };
-
         private readonly Dictionary<ProductKind, Color> productColors = new Dictionary<ProductKind, Color>();
         private readonly Dictionary<string, Material> materialCache = new Dictionary<string, Material>();
         private Light sun;
@@ -74,15 +72,17 @@ namespace MiniMart
             RenderSettings.fogColor = new Color(0.72f, 0.88f, 0.94f);
             RenderSettings.fogDensity = 0.008f;
 
-            CreatePrimitive(PrimitiveType.Plane, "Pastel Grass", Vector3.zero, new Vector3(5.5f, 1f, 5.5f), MaterialFor("Grass", new Color(0.47f, 0.82f, 0.38f)));
+            // Countryside well past the fences, so the map does not end in mid air at the edges.
+            CreatePrimitive(PrimitiveType.Plane, "Pastel Grass", new Vector3(GroundCenterX, 0f, GroundCenterZ),
+                new Vector3(GroundExtent * 0.2f, 1f, GroundExtent * 0.2f), MaterialFor("Grass", new Color(0.47f, 0.82f, 0.38f)));
             CreatePrimitive(PrimitiveType.Cube, "Market Floor", new Vector3(3f, 0.04f, 1f), new Vector3(26f, 0.12f, 14f), MaterialFor("Floor", new Color(0.96f, 0.82f, 0.57f)));
             BuildFarm();
-            BuildPasture();
+            BuildWildlife();
+            BuildWoods();
             BuildStoreShell();
             BuildProps();
             BuildShelves();
             BuildCheckout();
-            BuildUpgrades();
             BuildPlayer();
             BuildCamera();
             BuildLighting();
@@ -175,67 +175,96 @@ namespace MiniMart
         }
 
         /// <summary>
-        /// The paddock, south of everything else. Livestock can only pick targets inside their own
-        /// patch of it, so they can never wander onto the shop floor or through the crop beds: the
-        /// store starts at z = -6 and the farm at z = -2.4, both north of the fence line.
+        /// Scatters the tree pack in a band around the play area. Sampling is seeded so the woods
+        /// come out the same every run rather than rearranging themselves each time you press Play,
+        /// and every candidate inside the play area is thrown away, so nothing lands on the farm,
+        /// the shop floor, the paddock or the paths between them.
         /// </summary>
-        private void BuildPasture()
+        private void BuildWoods()
         {
-            Material fence = MaterialFor("PastureFence", new Color(0.72f, 0.50f, 0.26f));
-            CreatePrimitive(PrimitiveType.Cube, "Pasture_Ground", new Vector3(PastureCenterX, 0.05f, PastureCenterZ),
-                new Vector3(PastureWidth, 0.1f, PastureDepth), MaterialFor("PastureGrass", new Color(0.52f, 0.84f, 0.36f)));
+            Material bark = TexturedMaterial("Tree", ModelKit.TreeTexture);
+            Rect outer = Rect.MinMaxRect(
+                PlayArea.xMin - WoodsDepth, PlayArea.yMin - WoodsDepth,
+                PlayArea.xMax + WoodsDepth, PlayArea.yMax + WoodsDepth);
 
-            // North rail is split so the player can walk in through a gate.
-            BuildFenceLine(new Vector3(-10f, 0f, PastureNorthZ), new Vector3(18f, 0f, 0f), fence, 9);
-            BuildFenceLine(new Vector3(7.5f, 0f, PastureNorthZ), new Vector3(12f, 0f, 0f), fence, 6);
-            BuildFenceLine(new Vector3(PastureCenterX, 0f, PastureSouthZ), new Vector3(PastureWidth, 0f, 0f), fence, 14);
-            BuildFenceLine(new Vector3(PastureWestX, 0f, PastureCenterZ), new Vector3(0f, 0f, PastureDepth), fence, 4);
-            BuildFenceLine(new Vector3(PastureEastX, 0f, PastureCenterZ), new Vector3(0f, 0f, PastureDepth), fence, 4);
+            Random.State callerState = Random.state;
+            Random.InitState(20260826);
 
-            CreatePrimitive(PrimitiveType.Cube, "Water_Trough", new Vector3(-16.5f, 0.22f, -8.6f),
-                new Vector3(1.9f, 0.44f, 0.9f), MaterialFor("Trough", new Color(0.55f, 0.42f, 0.28f)));
-            CreateDecor(PrimitiveType.Cube, "Water_Trough_Water", new Vector3(-16.5f, 0.42f, -8.6f),
-                new Vector3(1.7f, 0.06f, 0.72f), MaterialFor("Water", new Color(0.19f, 0.70f, 0.94f)));
+            Transform woods = new GameObject("Woods").transform;
+            int planted = 0;
+            for (int attempt = 0; attempt < TreeCount * 12 && planted < TreeCount; attempt++)
+            {
+                Vector3 spot = new Vector3(Random.Range(outer.xMin, outer.xMax), 0f, Random.Range(outer.yMin, outer.yMax));
+                if (PlayArea.Contains(new Vector2(spot.x, spot.z))) continue;
 
-            // Each animal keeps to its own corner so they stay spread across the field.
-            BuildPastureAnimal(ModelKit.CowModel, "Cow", new Vector3(-14.5f, 0f, -10.6f), 3.2f, 1.8f,
-                1.45f, 0.35f, new Color(0.44f, 0.40f, 0.38f), false);
-            BuildPastureAnimal(ModelKit.SheepModel, "Sheep_A", new Vector3(-7.5f, 0f, -9.4f), 2.6f, 1.6f,
-                0.85f, 0.42f, new Color(0.96f, 0.95f, 0.90f), true);
-            BuildPastureAnimal(ModelKit.SheepModel, "Sheep_B", new Vector3(-4.6f, 0f, -11.3f), 2.6f, 1.6f,
-                0.85f, 0.42f, new Color(0.93f, 0.92f, 0.86f), true);
-            BuildPastureAnimal(ModelKit.PigModel, "Pig", new Vector3(1.8f, 0f, -10.9f), 3f, 1.7f,
-                0.70f, 0.5f, new Color(0.96f, 0.62f, 0.66f), true);
-            BuildPastureAnimal(ModelKit.DuckModel, "Duck_A", new Vector3(8f, 0f, -9.2f), 2.4f, 1.5f,
-                0.50f, 0.6f, new Color(0.99f, 0.97f, 0.88f), true);
-            BuildPastureAnimal(ModelKit.DuckModel, "Duck_B", new Vector3(10.6f, 0f, -11f), 2.4f, 1.5f,
-                0.50f, 0.6f, new Color(0.98f, 0.94f, 0.80f), true);
+                int species = Random.Range(0, ModelKit.TreeModels.Length);
+                float height = TreeHeights[species % TreeHeights.Length] * Random.Range(0.72f, 1.25f);
+                Transform tree = ModelKit.SpawnProp(woods, ModelKit.TreeModels[species], bark, height, 0, Vector3.zero);
+                if (tree == null) break; // pack missing, no point trying the rest
+
+                tree.name = "Tree_" + planted;
+                tree.position = spot;
+                tree.rotation = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
+                planted++;
+            }
+
+            Random.state = callerState;
         }
 
-        private void BuildPastureAnimal(string model, string name, Vector3 home, float patchWidth, float patchDepth,
-            float height, float speed, Color color, bool grazes)
+        /// <summary>
+        /// Animals scattered around the countryside. Same exclusion zone as the trees: nothing
+        /// lands inside the play area, so they potter about among the woods instead of blocking
+        /// the paths and the shop floor. Placement is seeded for consistency.
+        /// </summary>
+        private void BuildWildlife()
         {
-            GameObject root = new GameObject("Pasture_" + name);
-            root.transform.position = home;
-
-            // Vertex colours give the cow its patches and the pig its snout, so no flat paint here.
-            Transform body = ModelKit.SpawnProp(root.transform, model, VertexColorMaterial("Hide_" + name, color),
-                height, 0, Vector3.zero);
-            if (body == null)
+            string[] species = { ModelKit.CowModel, ModelKit.SheepModel, ModelKit.SheepModel,
+                ModelKit.PigModel, ModelKit.DuckModel, ModelKit.DuckModel };
+            float[] heights = { 1.45f, 0.85f, 0.85f, 0.70f, 0.50f, 0.50f };
+            float[] speeds = { 0.35f, 0.42f, 0.40f, 0.5f, 0.6f, 0.55f };
+            bool[] grazes = { false, true, true, true, true, true };
+            Color[] colors =
             {
-                Destroy(root);
-                return;
+                new Color(0.44f, 0.40f, 0.38f), new Color(0.96f, 0.95f, 0.90f),
+                new Color(0.93f, 0.92f, 0.86f), new Color(0.96f, 0.62f, 0.66f),
+                new Color(0.99f, 0.97f, 0.88f), new Color(0.98f, 0.94f, 0.80f)
+            };
+
+            Rect outer = Rect.MinMaxRect(
+                PlayArea.xMin - WoodsDepth + 2f, PlayArea.yMin - WoodsDepth + 2f,
+                PlayArea.xMax + WoodsDepth - 2f, PlayArea.yMax + WoodsDepth - 2f);
+
+            Random.State callerState = Random.state;
+            Random.InitState(20260827);
+
+            for (int i = 0; i < species.Length; i++)
+            {
+                Vector3 home = Vector3.zero;
+                for (int attempt = 0; attempt < 60; attempt++)
+                {
+                    float x = Random.Range(outer.xMin, outer.xMax);
+                    float z = Random.Range(outer.yMin, outer.yMax);
+                    if (PlayArea.Contains(new Vector2(x, z))) continue;
+                    home = new Vector3(x, 0f, z);
+                    break;
+                }
+                if (home == Vector3.zero) continue;
+
+                string label = species[i].Substring(species[i].LastIndexOf('/') + 1) + "_" + i;
+                GameObject root = new GameObject("Animal_" + label);
+                root.transform.position = home;
+
+                Transform body = ModelKit.SpawnProp(root.transform, species[i],
+                    VertexColorMaterial("Hide_" + label, colors[i]), heights[i], 0, Vector3.zero);
+                if (body == null) { Destroy(root); continue; }
+                body.name = label + "_Body";
+
+                float pw = 4f;
+                Rect patch = new Rect(home.x - pw * 0.5f, home.z - pw * 0.5f, pw, pw);
+                root.AddComponent<RoamingAnimal>().Initialise(body, patch, speeds[i], heights[i] * 0.035f, grazes[i]);
             }
-            body.name = name + "_Body";
 
-            // Clamped so no patch can reach past the rails, whatever the home point is.
-            Rect patch = Rect.MinMaxRect(
-                Mathf.Max(PastureWestX + 0.8f, home.x - patchWidth * 0.5f),
-                Mathf.Max(PastureSouthZ + 0.8f, home.z - patchDepth * 0.5f),
-                Mathf.Min(PastureEastX - 0.8f, home.x + patchWidth * 0.5f),
-                Mathf.Min(PastureNorthZ - 0.8f, home.z + patchDepth * 0.5f));
-
-            root.AddComponent<RoamingAnimal>().Initialise(body, patch, speed, height * 0.035f, grazes);
+            Random.state = callerState;
         }
 
         private void BuildChicken(Vector3 position, FarmProducer nest, string name)
@@ -321,17 +350,6 @@ namespace MiniMart
                 CreateShelf(new Vector3(StoreLayout.ShelfColumns[i], 0f, StoreLayout.BackRowZ), backRow[i], GameConfig.ShelfCapacity - 3);
                 CreateShelf(new Vector3(StoreLayout.ShelfColumns[i], 0f, StoreLayout.FrontRowZ), frontRow[i], GameConfig.ShelfCapacity - 3);
             }
-            for (int i = 0; i < save.extraShelves; i++) CreateExtraShelf(i);
-        }
-
-        /// <summary>
-        /// Extra shelves fill hand picked slots on the right hand side of the shop so they never
-        /// land on the coolers, the produce display, the till or the upgrade pads.
-        /// </summary>
-        private void CreateExtraShelf(int index)
-        {
-            Vector2 slot = ExtraShelfSlots[index % ExtraShelfSlots.Length];
-            CreateShelf(new Vector3(slot.x, 0f, slot.y), ExtraShelfProducts[index % ExtraShelfProducts.Length], GameConfig.ShelfCapacity - 3);
         }
 
         private void CreateShelf(Vector3 position, ProductKind product, int stock)
@@ -361,23 +379,6 @@ namespace MiniMart
             root.transform.position = new Vector3(11.4f, 0f, -2.9f);
             Checkout = root.AddComponent<CheckoutStation>();
             Checkout.Initialise();
-        }
-
-        private void BuildUpgrades()
-        {
-            CreateUpgrade(new Vector3(1.5f, 0f, -4.55f), UpgradeType.Crate, new Color(0.55f, 0.85f, 0.45f));
-            CreateUpgrade(new Vector3(4.0f, 0f, -4.55f), UpgradeType.ExtraShelf, new Color(0.37f, 0.84f, 0.89f));
-            CreateUpgrade(new Vector3(6.5f, 0f, -4.55f), UpgradeType.Customers, new Color(0.96f, 0.57f, 0.82f));
-            CreateUpgrade(new Vector3(9.0f, 0f, -4.55f), UpgradeType.Premium, new Color(1f, 0.78f, 0.2f));
-        }
-
-        private void CreateUpgrade(Vector3 position, UpgradeType kind, Color color)
-        {
-            GameObject root = new GameObject("Upgrade_" + kind);
-            root.transform.position = position;
-            UpgradeStation upgrade = root.AddComponent<UpgradeStation>();
-            upgrade.Initialise(kind, color);
-            Upgrades.Add(upgrade);
         }
 
         private void BuildPlayer()
@@ -445,6 +446,24 @@ namespace MiniMart
             material = new Material(shader) { name = "M_" + name, color = color };
             if (material.HasProperty("_Smoothness")) material.SetFloat("_Smoothness", 0.05f);
             materialCache[name] = material;
+            return material;
+        }
+
+        /// <summary>
+        /// Material that samples a model's own texture. The tree pack ships a built in shader that
+        /// URP cannot render, so its palette texture gets rebound to a URP material instead.
+        /// </summary>
+        public Material TexturedMaterial(string name, string texturePath)
+        {
+            string key = "Tex_" + name;
+            if (materialCache.TryGetValue(key, out Material cached)) return cached;
+
+            Texture2D texture = Resources.Load<Texture2D>(texturePath);
+            if (texture == null) return MaterialFor(name, new Color(0.45f, 0.62f, 0.36f));
+
+            Material material = MaterialFor(key, Color.white);
+            if (material.HasProperty("_BaseMap")) material.SetTexture("_BaseMap", texture);
+            if (material.HasProperty("_MainTex")) material.SetTexture("_MainTex", texture);
             return material;
         }
 

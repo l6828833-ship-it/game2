@@ -13,8 +13,6 @@ namespace MiniMart
 
         private readonly List<GameObject> visuals = new List<GameObject>();
         private int unitsPerVisual = 1;
-        private Transform statusLight;
-        private Renderer statusRenderer;
 
         public void Initialise(ProductKind kind, int stock)
         {
@@ -38,30 +36,8 @@ namespace MiniMart
                 new Vector3(1.45f, 0.2f, 0.07f), game.MaterialFor("Label_" + kind, game.ProductColor(kind)), transform);
             marker.transform.localPosition = new Vector3(0f, 2.15f, -0.37f);
 
-            GameObject light = game.CreateDecor(PrimitiveType.Sphere, "Shelf_Status", transform.position,
-                new Vector3(0.3f, 0.3f, 0.3f), StatusMaterial(), transform);
-            light.transform.localPosition = new Vector3(0f, 2.62f, -0.2f);
-            statusLight = light.transform;
-            statusRenderer = light.GetComponent<Renderer>();
-
             BuildProductPool();
             RebuildVisuals();
-        }
-
-        private void Update()
-        {
-            if (statusLight == null) return;
-            float bob = IsEmpty ? Mathf.Sin(Time.time * 6f) * 0.07f : Mathf.Sin(Time.time * 1.8f) * 0.03f;
-            statusLight.localPosition = new Vector3(0f, 2.62f + bob, -0.2f);
-            if (statusRenderer != null) statusRenderer.sharedMaterial = StatusMaterial();
-        }
-
-        private Material StatusMaterial()
-        {
-            MiniMartGameManager game = MiniMartGameManager.Instance;
-            if (IsEmpty) return game.MaterialFor("ShelfStatusEmpty", new Color(0.95f, 0.22f, 0.24f));
-            if (Stock <= 4) return game.MaterialFor("ShelfStatusLow", new Color(1f, 0.78f, 0.18f));
-            return game.MaterialFor("ShelfStatusGood", new Color(0.34f, 0.85f, 0.42f));
         }
 
         /// <summary>Shopper picks one item off the shelf.</summary>
