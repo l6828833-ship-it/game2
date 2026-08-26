@@ -423,11 +423,6 @@ namespace MiniMart
         private Transform visual;
         private ProductKind? carrying;
         private Vector3 moveVelocity;
-        private float walkPhase;
-        private Transform leftLeg;
-        private Transform rightLeg;
-        private Transform leftArm;
-        private Transform rightArm;
         public ProductKind? Carrying => carrying;
 
         public void Initialise()
@@ -453,29 +448,6 @@ namespace MiniMart
             {
                 BuildToyCharacter(visual, new Color(1f, 0.82f, 0.10f), new Color(1f, 0.82f, 0.10f), "Player");
             }
-            BuildWalkRig();
-        }
-
-        private void BuildWalkRig()
-        {
-            MiniMartGameManager game = MiniMartGameManager.Instance;
-            Transform rig = new GameObject("Player_Walk_Rig").transform;
-            rig.SetParent(visual, false);
-            Material limbMaterial = game.MaterialFor("PlayerLimbYellow", new Color(1f, 0.72f, 0.05f));
-            Material shadowMaterial = game.MaterialFor("PlayerShadow", new Color(0.16f, 0.22f, 0.18f, 0.35f));
-            GameObject shadow = game.CreatePrimitive(PrimitiveType.Cylinder, "Player_Grounded_Shadow", visual.position, new Vector3(0.44f, 0.02f, 0.34f), shadowMaterial, rig);
-            shadow.transform.localPosition = new Vector3(0f, 0.025f, 0f);
-            leftLeg = CreateAnimatedLimb(rig, "Player_Left_Leg", limbMaterial, new Vector3(-0.16f, 0.32f, 0.02f), new Vector3(0.13f, 0.28f, 0.13f));
-            rightLeg = CreateAnimatedLimb(rig, "Player_Right_Leg", limbMaterial, new Vector3(0.16f, 0.32f, 0.02f), new Vector3(0.13f, 0.28f, 0.13f));
-            leftArm = CreateAnimatedLimb(rig, "Player_Left_Arm", limbMaterial, new Vector3(-0.38f, 0.86f, 0f), new Vector3(0.105f, 0.24f, 0.105f));
-            rightArm = CreateAnimatedLimb(rig, "Player_Right_Arm", limbMaterial, new Vector3(0.38f, 0.86f, 0f), new Vector3(0.105f, 0.24f, 0.105f));
-        }
-
-        private Transform CreateAnimatedLimb(Transform parent, string limbName, Material material, Vector3 localPosition, Vector3 scale)
-        {
-            GameObject limb = MiniMartGameManager.Instance.CreatePrimitive(PrimitiveType.Capsule, limbName, visual.position, scale, material, parent);
-            limb.transform.localPosition = localPosition;
-            return limb.transform;
         }
 
         private void Update()
@@ -496,27 +468,10 @@ namespace MiniMart
             if (inputDirection.sqrMagnitude > 0.01f)
             {
                 transform.forward = Vector3.Slerp(transform.forward, inputDirection, 12f * Time.deltaTime);
-                walkPhase += Time.deltaTime * 9f;
-                AnimateWalk(1f);
-            }
-            else
-            {
-                AnimateWalk(0f);
             }
             visual.localPosition = Vector3.zero;
             visual.localRotation = Quaternion.identity;
             UpdateCarryVisual();
-        }
-
-        private void AnimateWalk(float blend)
-        {
-            if (leftLeg == null || rightLeg == null || leftArm == null || rightArm == null) return;
-            float legSwing = Mathf.Sin(walkPhase) * 27f * blend;
-            float armSwing = Mathf.Sin(walkPhase) * 22f * blend;
-            leftLeg.localRotation = Quaternion.Slerp(leftLeg.localRotation, Quaternion.Euler(legSwing, 0f, 0f), Time.deltaTime * 14f);
-            rightLeg.localRotation = Quaternion.Slerp(rightLeg.localRotation, Quaternion.Euler(-legSwing, 0f, 0f), Time.deltaTime * 14f);
-            leftArm.localRotation = Quaternion.Slerp(leftArm.localRotation, Quaternion.Euler(-armSwing, 0f, -8f), Time.deltaTime * 14f);
-            rightArm.localRotation = Quaternion.Slerp(rightArm.localRotation, Quaternion.Euler(armSwing, 0f, 8f), Time.deltaTime * 14f);
         }
 
         private void Interact()
