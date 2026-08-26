@@ -117,8 +117,8 @@ namespace MiniMart
             // The supplied tilled-land asset is now the actual harvest location. Its larger target
             // height makes the soil read clearly from the isometric game camera.
             Material soilTint = MaterialFor("PlotSoil", new Color(0.55f, 0.36f, 0.20f));
-            Transform plotLeft = ModelKit.SpawnProp(null, ModelKit.FarmPlotModel, soilTint, PlotHeight, 3, Vector3.zero);
-            Transform plotRight = ModelKit.SpawnProp(null, ModelKit.FarmPlotModel, soilTint, PlotHeight, 3, Vector3.zero);
+            Transform plotLeft = ModelKit.SpawnProp(null, "Props/PlotOfLand", soilTint, PlotHeight, 3, Vector3.zero);
+            Transform plotRight = ModelKit.SpawnProp(null, "Props/PlotOfLand", soilTint, PlotHeight, 3, Vector3.zero);
             if (plotLeft != null && plotRight != null)
             {
                 plotLeft.name = label + "_Plot_L";
@@ -301,8 +301,8 @@ namespace MiniMart
         {
             // Only the four farm products, doubled up. A shelf of something the farm cannot grow
             // would empty out and stay empty, since harvesting is the only way to restock.
-            ProductKind[] backRow = { ProductKind.Tomato, ProductKind.Watermelon, ProductKind.Banana, ProductKind.Egg };
-            ProductKind[] frontRow = { ProductKind.Egg, ProductKind.Tomato, ProductKind.Watermelon, ProductKind.Banana };
+            ProductKind[] backRow = { ProductKind.Tomato, ProductKind.Watermelon, ProductKind.Banana, ProductKind.Tomato };
+            ProductKind[] frontRow = { ProductKind.Banana, ProductKind.Tomato, ProductKind.Watermelon, ProductKind.Banana };
             for (int i = 0; i < StoreLayout.ShelfColumns.Length; i++)
             {
                 CreateShelf(new Vector3(StoreLayout.ShelfColumns[i], 0f, StoreLayout.BackRowZ), backRow[i], GameConfig.ShelfCapacity - 3);

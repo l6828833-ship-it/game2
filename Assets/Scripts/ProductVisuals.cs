@@ -55,7 +55,7 @@ namespace MiniMart
                     visual = new Visual("Items/Tomato", Vector3.zero, 0.28f, 0.42f, 0.34f, 0, 0);
                     return true;
                 case ProductKind.Watermelon:
-                    visual = new Visual("Items/Watermelon", Vector3.zero, 0.32f, 0.52f, 0.42f, 0, 0);
+                    visual = new Visual("Items/Watermelon", Vector3.zero, 0.24f, 0.34f, 0.30f, 0, 0);
                     return true;
                 default:
                     visual = default;
