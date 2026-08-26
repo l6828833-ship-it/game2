@@ -59,11 +59,14 @@ namespace MiniMart
             else
             {
                 ToyCharacter.Build(visual, new Color(1f, 0.82f, 0.10f), new Color(1f, 0.82f, 0.10f), "Player", false);
+                BuildWalkRig();
             }
-
-            BuildWalkRig();
         }
 
+        /// <summary>
+        /// Swinging limbs for the primitive stand in only. The imported FarmPlayer model gets no
+        /// overlay geometry: extra capsules poked through the mesh.
+        /// </summary>
         private void BuildWalkRig()
         {
             MiniMartGameManager game = MiniMartGameManager.Instance;
