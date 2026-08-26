@@ -20,8 +20,9 @@ namespace MiniMart
         private Transform rightLeg;
         private Transform leftArm;
         private Transform rightArm;
-        private Transform carryVisual;
+        private Transform carryStack;
         private ProductKind? carryVisualKind;
+        private int carryVisualCount = -1;
         private CharacterLocomotion locomotion;
 
         private ProductKind? carrying;
@@ -37,6 +38,7 @@ namespace MiniMart
 
         public ProductKind? Carrying => carrying;
         public int CarryAmount => carryAmount;
+        public bool CarryingMax => carryAmount >= GameConfig.CarryCapacity;
 
         /// <summary>What the HUD shows for whatever is in reach right now.</summary>
         public string Prompt { get; private set; } = string.Empty;
@@ -240,12 +242,17 @@ namespace MiniMart
 
             float range = GameConfig.InteractRange;
 
-            if (carrying == null)
+            if (carryAmount < GameConfig.CarryCapacity)
             {
-                targetFarm = FindClosest(game.FarmProducers, range);
-                if (targetFarm != null) { targetKind = TargetKind.Harvest; return; }
+                FarmProducer nearbyFarm = FindClosest(game.FarmProducers, range);
+                if (nearbyFarm != null && (carrying == null || carrying.Value == nearbyFarm.Product))
+                {
+                    targetFarm = nearbyFarm;
+                    targetKind = TargetKind.Harvest;
+                    return;
+                }
             }
-            else
+            if (carrying != null)
             {
                 targetShelf = ClosestShelfForCarry(range);
                 if (targetShelf != null) { targetKind = TargetKind.Shelf; return; }
@@ -289,12 +296,23 @@ namespace MiniMart
             switch (targetKind)
             {
                 case TargetKind.Harvest:
+                    if (carrying != null && carrying.Value != targetFarm.Product)
+                    {
+                        game.Sfx.Play(SfxKind.Deny);
+                        game.UI.SetNotification("Finish your " + GameConfig.ProductLabel(carrying.Value) + " stack first.", 1.8f);
+                        return;
+                    }
+                    if (carryAmount >= GameConfig.CarryCapacity)
+                    {
+                        game.Sfx.Play(SfxKind.Deny);
+                        game.UI.SetNotification("MAX — stock the shelf before harvesting more.", 1.6f);
+                        return;
+                    }
                     if (!targetFarm.TryHarvest()) return;
                     carrying = targetFarm.Product;
-                    carryAmount = game.CrateSize;
+                    carryAmount++;
                     game.Sfx.Play(SfxKind.Harvest);
-                    game.UI.SetNotification("Picked up " + carryAmount + " " + GameConfig.ProductLabel(carrying.Value)
-                        + ". Take the crate to the matching shelf.", 2.2f);
+                    game.UI.SetNotification("Picked up " + carryAmount + "/" + GameConfig.CarryCapacity + " " + GameConfig.ProductLabel(carrying.Value) + ".", 1.4f);
                     return;
 
                 case TargetKind.Shelf:
@@ -311,8 +329,8 @@ namespace MiniMart
 
                 default:
                     game.UI.SetNotification(carrying == null
-                        ? "Nothing in reach. Head to a crop plot or the egg nest and press E."
-                        : "Carry the crate to a " + GameConfig.ProductLabel(carrying.Value) + " shelf and press E.", 2f);
+                        ? "Nothing in reach. Head to a farm plot and press E."
+                        : "Carry your stack to a " + GameConfig.ProductLabel(carrying.Value) + " shelf and press E.", 2f);
                     return;
             }
         }
@@ -356,7 +374,7 @@ namespace MiniMart
         {
             if (carrying == null) return;
             MiniMartGameManager game = MiniMartGameManager.Instance;
-            game.UI.SetNotification("Dropped the " + GameConfig.ProductLabel(carrying.Value) + " crate.", 1.5f);
+            game.UI.SetNotification("Dropped the " + GameConfig.ProductLabel(carrying.Value) + " stack.", 1.5f);
             carrying = null;
             carryAmount = 0;
         }
@@ -368,7 +386,7 @@ namespace MiniMart
             {
                 case TargetKind.Harvest:
                     Prompt = targetFarm.IsReady
-                        ? "[E]  Harvest " + targetFarm.Label + "  (crate of " + game.CrateSize + ")"
+                        ? "[E]  Pick " + GameConfig.ProductLabel(targetFarm.Product) + "  (" + targetFarm.AvailableCount + " on plot, " + carryAmount + "/" + GameConfig.CarryCapacity + ")"
                         : targetFarm.Label + " regrows in " + Mathf.CeilToInt(targetFarm.RegrowRemaining) + "s";
                     return;
 
@@ -401,52 +419,49 @@ namespace MiniMart
         private void UpdateCarryVisual()
         {
             MiniMartGameManager game = MiniMartGameManager.Instance;
-            if (carrying == null)
+            if (carrying == null || carryAmount <= 0)
             {
-                if (carryVisual != null) carryVisual.gameObject.SetActive(false);
+                if (carryStack != null) carryStack.gameObject.SetActive(false);
+                carryVisualCount = 0;
                 return;
             }
 
-            // Rebuild when the product changes: eggs use the supplied model, everything else a crate.
-            if (carryVisual != null && carryVisualKind != carrying)
+            if (carryStack == null)
             {
-                Destroy(carryVisual.gameObject);
-                carryVisual = null;
-            }
-            if (carryVisual == null)
-            {
-                carryVisual = BuildCarryVisual(game, carrying.Value);
-                carryVisualKind = carrying;
+                carryStack = new GameObject("Carry_Stack").transform;
+                carryStack.SetParent(transform, false);
             }
 
-            carryVisual.gameObject.SetActive(true);
-            if (carrying.Value == ProductKind.Egg) return;
-            float bulk = Mathf.Lerp(0.28f, 0.46f, Mathf.Clamp01(carryAmount / 12f));
-            carryVisual.localScale = new Vector3(0.42f, bulk, 0.34f);
+            if (carryVisualKind != carrying || carryVisualCount != carryAmount)
+            {
+                foreach (Transform child in carryStack) Destroy(child.gameObject);
+                for (int index = 0; index < carryAmount; index++)
+                {
+                    Transform item = BuildCarryItem(game, carrying.Value, carryStack);
+                    item.name = "Carry_" + carrying.Value + "_" + (index + 1);
+                    item.localPosition = new Vector3(0f, 0.68f + index * 0.30f, 0.46f);
+                    item.localRotation = Quaternion.Euler(0f, 22f + index * 7f, 12f);
+                }
+                carryVisualKind = carrying;
+                carryVisualCount = carryAmount;
+            }
+
+            carryStack.gameObject.SetActive(true);
         }
 
-        private Transform BuildCarryVisual(MiniMartGameManager game, ProductKind kind)
+        private Transform BuildCarryItem(MiniMartGameManager game, ProductKind kind, Transform parent)
         {
             Material material = game.MaterialFor("Carry_" + kind, game.ProductColor(kind));
-
-            // Whatever is being carried, show the real produce if there is a mesh for it.
             if (ProductVisuals.TryGet(kind, out ProductVisuals.Visual visual))
             {
-                Transform item = ModelKit.SpawnProp(transform, visual.Model, material,
-                    visual.HandHeight, visual.DetailLod, visual.UpFix);
-                if (item != null)
-                {
-                    item.name = "Carry_Item";
-                    item.localPosition = new Vector3(0f, 0.62f, 0.44f);
-                    item.localRotation = Quaternion.Euler(0f, 25f, 12f);
-                    return item;
-                }
+                Transform item = ModelKit.SpawnProp(parent, visual.Model, material,
+                    visual.HandHeight * 1.6f, visual.DetailLod, visual.UpFix);
+                if (item != null) return item;
             }
 
-            GameObject crate = game.CreateDecor(PrimitiveType.Cube, "Carry_Item", transform.position,
-                new Vector3(0.42f, 0.36f, 0.34f), material, transform);
-            crate.transform.localPosition = new Vector3(0f, 0.70f, 0.46f);
-            return crate.transform;
+            GameObject fallback = game.CreateDecor(PrimitiveType.Sphere, "Carry_Fallback", transform.position,
+                Vector3.one * 0.30f, material, parent);
+            return fallback.transform;
         }
 
         private T FindClosest<T>(IEnumerable<T> candidates, float radius) where T : Component

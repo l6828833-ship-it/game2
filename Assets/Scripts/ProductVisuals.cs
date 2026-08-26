@@ -48,14 +48,14 @@ namespace MiniMart
                     visual = new Visual("Items/Egg", ModelKit.ZUpFix, 0.15f, 0.16f, 0.17f, 4, 3);
                     return true;
                 case ProductKind.Banana:
-                    visual = new Visual("Items/Banana", ModelKit.ZUpFix, 0.17f, 0.18f, 0.20f, 4, 3);
+                    visual = new Visual("Items/Banana", ModelKit.ZUpFix, 0.28f, 0.42f, 0.34f, 4, 3);
                     return true;
                 case ProductKind.Tomato:
                     // OBJ export: single mesh, already Y up and sitting on zero, so no LOD or fix.
-                    visual = new Visual("Items/Tomato", Vector3.zero, 0.15f, 0.16f, 0.17f, 0, 0);
+                    visual = new Visual("Items/Tomato", Vector3.zero, 0.28f, 0.42f, 0.34f, 0, 0);
                     return true;
                 case ProductKind.Watermelon:
-                    visual = new Visual("Items/Watermelon", Vector3.zero, 0.16f, 0.20f, 0.24f, 0, 0);
+                    visual = new Visual("Items/Watermelon", Vector3.zero, 0.32f, 0.52f, 0.42f, 0, 0);
                     return true;
                 default:
                     visual = default;

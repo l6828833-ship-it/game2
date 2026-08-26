@@ -18,6 +18,7 @@ namespace MiniMart
 
         public const int StartingMoney = 100;
         public const int ShelfCapacity = 15;
+        public const int CarryCapacity = 4;
         public const int MaxUpgradeLevel = 8;
 
         public const float DayLength = 165f;
@@ -32,8 +33,8 @@ namespace MiniMart
         /// <summary>Rent is charged when the store closes, so day one is a gentle warm up.</summary>
         public static int RentForDay(int day) => 25 + Mathf.Max(0, day - 1) * 15;
 
-        /// <summary>How many units one trip from the farm puts on a shelf.</summary>
-        public static int CrateSize(int crateLevel) => 5 + crateLevel * 2;
+        /// <summary>The farmer stacks exactly four individual items per trip.</summary>
+        public static int CrateSize(int crateLevel) => CarryCapacity;
 
         public static int UpgradePrice(UpgradeType type, int level)
         {

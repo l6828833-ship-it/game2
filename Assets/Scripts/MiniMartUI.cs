@@ -184,8 +184,8 @@ namespace MiniMart
             }
 
             string carry = game.Player == null || game.Player.Carrying == null
-                ? "Hands free - harvest a crate on the farm"
-                : "Carrying " + game.Player.CarryAmount + " x " + GameConfig.ProductLabel(game.Player.Carrying.Value);
+                ? "Hands free - harvest a farm plot"
+                : "Carrying " + game.Player.CarryAmount + "/" + GameConfig.CarryCapacity + " " + GameConfig.ProductLabel(game.Player.Carrying.Value);
             if (carry != cachedCarry)
             {
                 cachedCarry = carry;

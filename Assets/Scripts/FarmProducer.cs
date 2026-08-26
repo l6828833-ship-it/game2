@@ -2,35 +2,31 @@ using UnityEngine;
 
 namespace MiniMart
 {
-    /// <summary>A crop plot or egg nest. Press E when the produce is up to collect a crate.</summary>
+    /// <summary>A supplied farm plot that begins with four real crop items and replenishes after it is emptied.</summary>
     public class FarmProducer : MonoBehaviour
     {
+        private const int PlotCapacity = GameConfig.CarryCapacity;
+
         public ProductKind Product { get; private set; }
         public string Label { get; private set; }
-        public bool IsReady { get; private set; } = true;
+        public bool IsReady => availableCount > 0;
+        public int AvailableCount => availableCount;
         public float RegrowRemaining => Mathf.Max(0f, regrowTimer);
-
-        /// <summary>Played when fresh produce appears. The nest uses it for a cluck.</summary>
         public SfxKind? ReadySound { get; set; }
 
-        private Transform harvestVisual;
-        private Vector3 baseScale = Vector3.one;
-        private float restHeight = 0.5f;
-        private float hover = 0.04f;
+        private readonly System.Collections.Generic.List<Transform> harvestVisuals = new System.Collections.Generic.List<Transform>();
+        private int availableCount;
+        private float restHeight;
         private float regrowTimer;
-        private float regrowDuration = 1f;
+        private float regrowDuration = 6f;
 
-        /// <summary>
-        /// The produce mesh comes from the product table, falling back to a coloured primitive for
-        /// products without one. <paramref name="restHeight"/> is where it sits, which is what puts
-        /// the egg on the nest rim rather than floating above a marker.
-        /// </summary>
         public void Initialise(ProductKind kind, string label, Color color,
-            float modelHeight = 0f, float restHeight = 0.5f, bool showMarker = true)
+            float modelHeight = 0f, float restHeight = 0.5f, bool showMarker = false)
         {
             Product = kind;
             Label = label;
             this.restHeight = restHeight;
+            availableCount = PlotCapacity;
             MiniMartGameManager game = MiniMartGameManager.Instance;
             Material output = game.MaterialFor("FarmOutput_" + kind, color);
 
@@ -41,68 +37,66 @@ namespace MiniMart
                 marker.transform.localPosition = new Vector3(0f, 0.08f, 0f);
             }
 
-            Transform produce = null;
-            if (ProductVisuals.TryGet(kind, out ProductVisuals.Visual visual))
+            for (int index = 0; index < PlotCapacity; index++)
             {
-                float height = modelHeight > 0f ? modelHeight : visual.CropHeight;
-                produce = ModelKit.SpawnProp(transform, visual.Model, output, height, visual.DetailLod, visual.UpFix);
-                if (produce != null)
+                Transform produce = SpawnHarvestItem(game, output, modelHeight);
+                int row = index / 2;
+                int column = index % 2;
+                produce.name = label + "_Harvest_" + (index + 1);
+                produce.localPosition = new Vector3(-0.50f + column * 1.00f, this.restHeight + row * 0.08f, -0.30f + row * 0.60f);
+                produce.localRotation = Quaternion.Euler(0f, index * 48f, 0f);
+                harvestVisuals.Add(produce);
+            }
+        }
+
+        private Transform SpawnHarvestItem(MiniMartGameManager game, Material output, float modelHeight)
+        {
+            if (ProductVisuals.TryGet(Product, out ProductVisuals.Visual visual))
+            {
+                float height = modelHeight > 0f ? modelHeight : visual.CropHeight * 2.0f;
+                Transform item = ModelKit.SpawnProp(transform, visual.Model, output, height, visual.DetailLod, visual.UpFix);
+                if (item != null)
                 {
-                    // SpawnProp already sized and grounded the mesh inside the pivot, so the pivot
-                    // itself is what gets moved and scaled from here on.
-                    baseScale = produce.localScale;
-                    hover = Mathf.Min(0.04f, height * 0.2f);
+                    ModelKit.Paint(item.gameObject, output);
+                    ModelKit.StripColliders(item.gameObject);
+                    return item;
                 }
             }
 
-            if (produce == null)
-            {
-                PrimitiveType shape = kind == ProductKind.Egg || kind == ProductKind.Apple ? PrimitiveType.Sphere : PrimitiveType.Cube;
-                baseScale = kind == ProductKind.Egg ? new Vector3(0.38f, 0.50f, 0.38f) : new Vector3(0.46f, 0.46f, 0.46f);
-                produce = game.CreateDecor(shape, label + "_Ready", transform.position, baseScale, output, transform).transform;
-                produce.localScale = baseScale;
-            }
-
-            produce.name = label + "_Ready";
-            produce.localPosition = new Vector3(0f, this.restHeight, 0f);
-            ModelKit.Paint(produce.gameObject, output);
-            ModelKit.StripColliders(produce.gameObject);
-            harvestVisual = produce;
+            PrimitiveType shape = Product == ProductKind.Banana ? PrimitiveType.Capsule : PrimitiveType.Sphere;
+            GameObject fallback = game.CreateDecor(shape, Label + "_Harvest", transform.position,
+                Product == ProductKind.Banana ? new Vector3(0.22f, 0.42f, 0.22f) : Vector3.one * 0.32f, output, transform);
+            return fallback.transform;
         }
 
         private void Update()
         {
-            if (harvestVisual == null) return;
-
-            if (IsReady)
-            {
-                // Gentle hover so ready produce reads at a glance from the isometric camera.
-                harvestVisual.localPosition = new Vector3(0f, restHeight + Mathf.Sin(Time.time * 2.2f) * hover, 0f);
-                return;
-            }
-
+            if (availableCount > 0) return;
             regrowTimer -= Time.deltaTime;
-            float growth = Mathf.Clamp01(1f - regrowTimer / regrowDuration);
-            harvestVisual.localScale = baseScale * Mathf.Lerp(0.08f, 1f, growth);
             if (regrowTimer > 0f) return;
 
-            IsReady = true;
-            harvestVisual.localScale = baseScale;
+            availableCount = PlotCapacity;
+            foreach (Transform item in harvestVisuals) if (item != null) item.gameObject.SetActive(true);
             if (ReadySound.HasValue) MiniMartGameManager.Instance.Sfx.Play(ReadySound.Value);
+            MiniMartGameManager.Instance.UI.SetNotification(Label + " grew 4 fresh items!", 1.4f);
         }
 
         public bool TryHarvest()
         {
-            if (!IsReady)
+            if (availableCount <= 0)
             {
                 MiniMartGameManager.Instance.Sfx.Play(SfxKind.Deny);
                 MiniMartGameManager.Instance.UI.SetNotification(Label + " need " + Mathf.CeilToInt(RegrowRemaining) + "s more to grow.", 1.6f);
                 return false;
             }
-            IsReady = false;
-            regrowDuration = Product == ProductKind.Egg ? 8f : 6f;
-            regrowTimer = regrowDuration;
-            harvestVisual.localScale = baseScale * 0.08f;
+
+            availableCount--;
+            harvestVisuals[availableCount].gameObject.SetActive(false);
+            if (availableCount == 0)
+            {
+                regrowDuration = 7f;
+                regrowTimer = regrowDuration;
+            }
             return true;
         }
     }
