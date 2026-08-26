@@ -104,8 +104,9 @@ namespace MiniMart
             RenderSettings.fogColor = new Color(0.72f, 0.88f, 0.94f);
             RenderSettings.fogDensity = 0.008f;
 
-            CreatePrimitive(PrimitiveType.Plane, "Pastel Grass", Vector3.zero, new Vector3(3.5f, 1f, 3.5f), MaterialFor("Grass", new Color(0.35f, 0.75f, 0.47f)));
-            CreatePrimitive(PrimitiveType.Cube, "Store Floor", new Vector3(0f, 0.04f, 0f), new Vector3(15f, 0.12f, 11f), MaterialFor("Floor", new Color(0.92f, 0.87f, 0.76f)));
+            CreatePrimitive(PrimitiveType.Plane, "Pastel Grass", Vector3.zero, new Vector3(5.5f, 1f, 5.5f), MaterialFor("Grass", new Color(0.47f, 0.82f, 0.38f)));
+            CreatePrimitive(PrimitiveType.Cube, "Market Floor", new Vector3(3f, 0.04f, 1f), new Vector3(26f, 0.12f, 14f), MaterialFor("Floor", new Color(0.96f, 0.82f, 0.57f)));
+            BuildFarm();
             BuildStoreShell();
             BuildProps();
             BuildShelves();
@@ -117,46 +118,112 @@ namespace MiniMart
             BuildLighting();
 
             CustomerSpawn = new GameObject("Customer_Entrance").transform;
-            CustomerSpawn.position = new Vector3(-8f, 0f, -1.8f);
+            CustomerSpawn.position = new Vector3(-10.5f, 0f, -2.1f);
             CustomerExit = new GameObject("Customer_Exit").transform;
-            CustomerExit.position = new Vector3(-9.5f, 0f, -1.8f);
+            CustomerExit.position = new Vector3(-13.5f, 0f, -2.1f);
             for (int i = 0; i < 3; i++) SpawnCustomer();
             spawnTimer = 3.5f;
         }
 
+        private void BuildFarm()
+        {
+            Material soil = MaterialFor("FarmSoil", new Color(0.48f, 0.25f, 0.12f));
+            Material fence = MaterialFor("FarmFence", new Color(0.68f, 0.42f, 0.18f));
+            CreatePrimitive(PrimitiveType.Cube, "Farm_Path", new Vector3(-12f, 0.06f, -2.2f), new Vector3(8.5f, 0.08f, 2.2f), MaterialFor("FarmPath", new Color(0.91f, 0.72f, 0.40f)));
+            CreatePrimitive(PrimitiveType.Cube, "Farm_Zone", new Vector3(-16f, 0.05f, 2.1f), new Vector3(8.5f, 0.1f, 9f), MaterialFor("FarmGrass", new Color(0.58f, 0.88f, 0.34f)));
+            BuildCropBed(new Vector3(-18f, 0f, 3.6f), "Tomato_Plot", soil, ProductKind.Apple, new Color(0.93f, 0.22f, 0.25f));
+            BuildCropBed(new Vector3(-14.2f, 0f, 3.6f), "Carrot_Plot", soil, ProductKind.Juice, new Color(1f, 0.48f, 0.12f));
+            BuildCropBed(new Vector3(-18f, 0f, 0.25f), "Corn_Plot", soil, ProductKind.Cereal, new Color(1f, 0.78f, 0.15f));
+            BuildChickenCoop(new Vector3(-14.2f, 0f, 0.25f));
+            BuildFenceLine(new Vector3(-20.3f, 0f, 2.1f), new Vector3(0f, 0f, 8.8f), fence, 6);
+            BuildFenceLine(new Vector3(-16f, 0f, 6.5f), new Vector3(8.6f, 0f, 0f), fence, 6);
+            CreatePrimitive(PrimitiveType.Cylinder, "Farm_Well", new Vector3(-11.2f, 0.48f, 3.4f), new Vector3(0.78f, 0.48f, 0.78f), MaterialFor("Well", new Color(0.48f, 0.62f, 0.66f)));
+            CreatePrimitive(PrimitiveType.Sphere, "Farm_Water", new Vector3(-11.2f, 0.91f, 3.4f), new Vector3(0.62f, 0.12f, 0.62f), MaterialFor("Water", new Color(0.19f, 0.70f, 0.94f)));
+        }
+
+        private void BuildCropBed(Vector3 position, string label, Material soil, ProductKind product, Color fruitColor)
+        {
+            CreatePrimitive(PrimitiveType.Cube, label + "_Soil", position + new Vector3(0f, 0.12f, 0f), new Vector3(3f, 0.24f, 1.65f), soil);
+            for (int row = 0; row < 2; row++)
+            for (int col = 0; col < 4; col++)
+            {
+                Vector3 p = position + new Vector3(-1.05f + col * 0.7f, 0.33f, -0.38f + row * 0.76f);
+                CreatePrimitive(PrimitiveType.Cylinder, label + "_Stem", p, new Vector3(0.09f, 0.36f, 0.09f), MaterialFor("CropLeaf", new Color(0.19f, 0.58f, 0.18f)));
+                CreatePrimitive(PrimitiveType.Sphere, label + "_Produce", p + new Vector3(0.16f, 0.28f, 0f), new Vector3(0.24f, 0.24f, 0.24f), MaterialFor(label + "_Fruit", fruitColor));
+            }
+            GameObject farmStorage = new GameObject("FarmCrate_" + product);
+            farmStorage.transform.position = position + new Vector3(0f, 0f, -1.35f);
+            StorageBox box = farmStorage.AddComponent<StorageBox>();
+            box.Initialise(product);
+            Storages.Add(box);
+        }
+
+        private void BuildChickenCoop(Vector3 position)
+        {
+            CreatePrimitive(PrimitiveType.Cube, "Chicken_Coop", position + new Vector3(0f, 0.55f, 0f), new Vector3(3f, 1.1f, 1.65f), MaterialFor("Coop", new Color(0.91f, 0.42f, 0.23f)));
+            CreatePrimitive(PrimitiveType.Cylinder, "Chicken_Coop_Roof", position + new Vector3(0f, 1.25f, 0f), new Vector3(1.9f, 0.22f, 1.2f), MaterialFor("CoopRoof", new Color(0.31f, 0.58f, 0.84f)));
+            BuildToyChicken(position + new Vector3(-1.4f, 0f, -1.15f), "Chicken_A");
+            BuildToyChicken(position + new Vector3(-0.5f, 0f, -1.35f), "Chicken_B");
+            BuildToyChicken(position + new Vector3(0.45f, 0f, -1.15f), "Chicken_C");
+        }
+
+        private void BuildToyChicken(Vector3 position, string label)
+        {
+            CreatePrimitive(PrimitiveType.Sphere, label + "_Body", position + new Vector3(0f, 0.36f, 0f), new Vector3(0.48f, 0.42f, 0.55f), MaterialFor("ChickenWhite", new Color(0.97f, 0.96f, 0.88f)));
+            CreatePrimitive(PrimitiveType.Sphere, label + "_Head", position + new Vector3(0.28f, 0.64f, 0.1f), new Vector3(0.25f, 0.25f, 0.25f), MaterialFor("ChickenWhite", new Color(0.97f, 0.96f, 0.88f)));
+            CreatePrimitive(PrimitiveType.Sphere, label + "_Beak", position + new Vector3(0.5f, 0.61f, 0.1f), new Vector3(0.16f, 0.10f, 0.10f), MaterialFor("ChickenBeak", new Color(1f, 0.63f, 0.12f)));
+        }
+
+        private void BuildFenceLine(Vector3 center, Vector3 dimensions, Material material, int segments)
+        {
+            for (int i = 0; i <= segments; i++)
+            {
+                float t = i / (float)segments - 0.5f;
+                Vector3 p = center + new Vector3(dimensions.x * t, 0.52f, dimensions.z * t);
+                CreatePrimitive(PrimitiveType.Cylinder, "FencePost", p, new Vector3(0.10f, 0.52f, 0.10f), material);
+            }
+            CreatePrimitive(PrimitiveType.Cube, "FenceRail", center + new Vector3(0f, 0.45f, 0f), new Vector3(Mathf.Max(0.12f, dimensions.x), 0.12f, Mathf.Max(0.12f, dimensions.z)), material);
+        }
+
         private void BuildStoreShell()
         {
-            Material wall = MaterialFor("Wall", new Color(0.96f, 0.74f, 0.60f));
-            Material roof = MaterialFor("Roof", new Color(0.39f, 0.55f, 0.89f));
-            CreatePrimitive(PrimitiveType.Cube, "Back Wall", new Vector3(0f, 2.3f, 5.35f), new Vector3(15f, 4.5f, 0.28f), wall);
-            CreatePrimitive(PrimitiveType.Cube, "Left Wall", new Vector3(-7.35f, 2.3f, 2.4f), new Vector3(0.28f, 4.5f, 5.9f), wall);
-            CreatePrimitive(PrimitiveType.Cube, "Right Wall", new Vector3(7.35f, 2.3f, 2.4f), new Vector3(0.28f, 4.5f, 5.9f), wall);
-            CreatePrimitive(PrimitiveType.Cube, "Roof Trim", new Vector3(0f, 4.7f, 5.15f), new Vector3(15.5f, 0.35f, 0.65f), roof);
-            CreatePrimitive(PrimitiveType.Cube, "Entry Sign", new Vector3(-5.5f, 3.25f, -0.4f), new Vector3(2.6f, 0.75f, 0.2f), MaterialFor("Sign", new Color(1f, 0.88f, 0.2f)));
-            CreatePrimitive(PrimitiveType.Cylinder, "Plant Pot L", new Vector3(-6.2f, 0.35f, -3.2f), new Vector3(0.45f, 0.35f, 0.45f), MaterialFor("Pot", new Color(0.89f, 0.43f, 0.34f)));
-            CreatePrimitive(PrimitiveType.Sphere, "Plant L", new Vector3(-6.2f, 0.95f, -3.2f), new Vector3(0.75f, 1f, 0.75f), MaterialFor("Plant", new Color(0.27f, 0.65f, 0.34f)));
-            CreatePrimitive(PrimitiveType.Cylinder, "Plant Pot R", new Vector3(6.2f, 0.35f, -3.2f), new Vector3(0.45f, 0.35f, 0.45f), MaterialFor("Pot", new Color(0.89f, 0.43f, 0.34f)));
-            CreatePrimitive(PrimitiveType.Sphere, "Plant R", new Vector3(6.2f, 0.95f, -3.2f), new Vector3(0.75f, 1f, 0.75f), MaterialFor("Plant", new Color(0.27f, 0.65f, 0.34f)));
+            Material wall = MaterialFor("Wall", new Color(0.98f, 0.69f, 0.42f));
+            Material roof = MaterialFor("Roof", new Color(0.26f, 0.60f, 0.91f));
+            CreatePrimitive(PrimitiveType.Cube, "Back Wall", new Vector3(3f, 2.45f, 7.85f), new Vector3(26f, 4.8f, 0.28f), wall);
+            CreatePrimitive(PrimitiveType.Cube, "Left Wall", new Vector3(-9.85f, 2.45f, 3.5f), new Vector3(0.28f, 4.8f, 8.8f), wall);
+            CreatePrimitive(PrimitiveType.Cube, "Right Wall", new Vector3(15.85f, 2.45f, 3.5f), new Vector3(0.28f, 4.8f, 8.8f), wall);
+            CreatePrimitive(PrimitiveType.Cube, "Roof Trim", new Vector3(3f, 4.95f, 7.65f), new Vector3(26.5f, 0.35f, 0.65f), roof);
+            CreatePrimitive(PrimitiveType.Cube, "Market Sign", new Vector3(3f, 3.4f, -5.7f), new Vector3(5.4f, 0.8f, 0.2f), MaterialFor("Sign", new Color(1f, 0.88f, 0.2f)));
+            CreatePrimitive(PrimitiveType.Cylinder, "Plant Pot L", new Vector3(-7.8f, 0.35f, -4.5f), new Vector3(0.45f, 0.35f, 0.45f), MaterialFor("Pot", new Color(0.89f, 0.43f, 0.34f)));
+            CreatePrimitive(PrimitiveType.Sphere, "Plant L", new Vector3(-7.8f, 0.95f, -4.5f), new Vector3(0.75f, 1f, 0.75f), MaterialFor("Plant", new Color(0.27f, 0.65f, 0.34f)));
+            CreatePrimitive(PrimitiveType.Cylinder, "Plant Pot R", new Vector3(13.8f, 0.35f, -4.5f), new Vector3(0.45f, 0.35f, 0.45f), MaterialFor("Pot", new Color(0.89f, 0.43f, 0.34f)));
+            CreatePrimitive(PrimitiveType.Sphere, "Plant R", new Vector3(13.8f, 0.95f, -4.5f), new Vector3(0.75f, 1f, 0.75f), MaterialFor("Plant", new Color(0.27f, 0.65f, 0.34f)));
         }
 
         private void BuildProps()
         {
             Material fridge = MaterialFor("Fridge", new Color(0.54f, 0.86f, 0.95f));
-            CreatePrimitive(PrimitiveType.Cube, "Cooler", new Vector3(5.65f, 1.6f, 3.6f), new Vector3(1.6f, 3.1f, 1.15f), fridge);
-            CreatePrimitive(PrimitiveType.Cube, "Cooler Window", new Vector3(5.65f, 1.75f, 2.99f), new Vector3(1.2f, 2.35f, 0.04f), MaterialFor("Glass", new Color(0.7f, 0.94f, 1f)));
-            CreatePrimitive(PrimitiveType.Cube, "Welcome Mat", new Vector3(-5.45f, 0.12f, -2.75f), new Vector3(2.1f, 0.05f, 1.25f), MaterialFor("Mat", new Color(0.93f, 0.38f, 0.48f)));
+            CreatePrimitive(PrimitiveType.Cube, "Cooler_A", new Vector3(12.8f, 1.6f, 5.7f), new Vector3(1.6f, 3.1f, 1.15f), fridge);
+            CreatePrimitive(PrimitiveType.Cube, "Cooler_B", new Vector3(10.7f, 1.6f, 5.7f), new Vector3(1.6f, 3.1f, 1.15f), fridge);
+            CreatePrimitive(PrimitiveType.Cube, "Cooler_Window_A", new Vector3(12.8f, 1.75f, 5.09f), new Vector3(1.2f, 2.35f, 0.04f), MaterialFor("Glass", new Color(0.7f, 0.94f, 1f)));
+            CreatePrimitive(PrimitiveType.Cube, "Cooler_Window_B", new Vector3(10.7f, 1.75f, 5.09f), new Vector3(1.2f, 2.35f, 0.04f), MaterialFor("Glass", new Color(0.7f, 0.94f, 1f)));
+            CreatePrimitive(PrimitiveType.Cube, "Welcome Mat", new Vector3(-7.4f, 0.12f, -4.65f), new Vector3(3.1f, 0.05f, 1.25f), MaterialFor("Mat", new Color(0.93f, 0.38f, 0.48f)));
+            CreatePrimitive(PrimitiveType.Cube, "Produce_Display", new Vector3(7.7f, 0.65f, 4.9f), new Vector3(2.6f, 1.1f, 1.45f), MaterialFor("Display", new Color(0.62f, 0.36f, 0.14f)));
+            for (int i = 0; i < 6; i++)
+                CreatePrimitive(PrimitiveType.Sphere, "Produce_Basket", new Vector3(6.9f + (i % 3) * 0.75f, 1.25f, 4.55f + (i / 3) * 0.55f), new Vector3(0.34f, 0.34f, 0.34f), MaterialFor("Produce_" + i, i % 2 == 0 ? new Color(0.94f, 0.21f, 0.23f) : new Color(1f, 0.65f, 0.15f)));
         }
 
         private void BuildShelves()
         {
             Vector3[] positions =
             {
-                new Vector3(-2.4f, 0f, 2.7f), new Vector3(0.4f, 0f, 2.7f), new Vector3(3.2f, 0f, 2.7f),
-                new Vector3(-2.4f, 0f, 0.35f), new Vector3(0.4f, 0f, 0.35f)
+                new Vector3(-5.5f, 0f, 4.6f), new Vector3(-2.5f, 0f, 4.6f), new Vector3(0.5f, 0f, 4.6f), new Vector3(3.5f, 0f, 4.6f),
+                new Vector3(-5.5f, 0f, 1.7f), new Vector3(-2.5f, 0f, 1.7f), new Vector3(0.5f, 0f, 1.7f), new Vector3(3.5f, 0f, 1.7f)
             };
-            for (int i = 0; i < positions.Length; i++) CreateShelf(positions[i], starterProducts[i], true);
+            ProductKind[] products = { ProductKind.Milk, ProductKind.Bread, ProductKind.Apple, ProductKind.Juice, ProductKind.Cereal, ProductKind.Chips, ProductKind.Water, ProductKind.Cookies };
+            for (int i = 0; i < positions.Length; i++) CreateShelf(positions[i], products[i], true);
             for (int i = 0; i < save.extraShelves; i++)
-                CreateShelf(new Vector3(3.2f + (i % 2) * 2.8f, 0f, 0.35f - (i / 2) * 2.2f), ProductKind.Chips, true);
+                CreateShelf(new Vector3(6.4f + (i % 2) * 2.8f, 0f, 1.7f - (i / 2) * 2.9f), ProductKind.Chips, true);
         }
 
         private void CreateShelf(Vector3 position, ProductKind product, bool stocked)
@@ -170,11 +237,11 @@ namespace MiniMart
 
         private void BuildStorage()
         {
-            ProductKind[] types = { ProductKind.Milk, ProductKind.Bread, ProductKind.Apple, ProductKind.Juice, ProductKind.Cereal };
+            ProductKind[] types = { ProductKind.Milk, ProductKind.Bread, ProductKind.Apple, ProductKind.Juice, ProductKind.Cereal, ProductKind.Chips, ProductKind.Water, ProductKind.Cookies };
             for (int i = 0; i < types.Length; i++)
             {
                 GameObject root = new GameObject("Storage_" + types[i]);
-                root.transform.position = new Vector3(-5.55f + i * 1.15f, 0f, 3.95f);
+                root.transform.position = new Vector3(-7.8f + (i % 4) * 1.15f, 0f, 6.5f - (i / 4) * 1.05f);
                 StorageBox storage = root.AddComponent<StorageBox>();
                 storage.Initialise(types[i]);
                 Storages.Add(storage);
@@ -184,16 +251,16 @@ namespace MiniMart
         private void BuildCheckout()
         {
             GameObject root = new GameObject("Checkout");
-            root.transform.position = new Vector3(4.9f, 0f, -1.9f);
+            root.transform.position = new Vector3(11.4f, 0f, -2.9f);
             Checkout = root.AddComponent<CheckoutStation>();
             Checkout.Initialise();
         }
 
         private void BuildUpgrades()
         {
-            CreateUpgrade("Upgrade_Shelf", new Vector3(2.3f, 0f, -3.35f), "SHELF +", 60, UpgradeType.ExtraShelf, new Color(0.37f, 0.84f, 0.89f));
-            CreateUpgrade("Upgrade_Customers", new Vector3(4.6f, 0f, -3.35f), "BUSY +", 90, UpgradeType.Customers, new Color(0.96f, 0.57f, 0.82f));
-            CreateUpgrade("Upgrade_Premium", new Vector3(6.4f, 0f, -3.35f), "SALE +", 120, UpgradeType.Premium, new Color(1f, 0.78f, 0.2f));
+            CreateUpgrade("Upgrade_Shelf", new Vector3(4.0f, 0f, -4.55f), "SHELF +", 60, UpgradeType.ExtraShelf, new Color(0.37f, 0.84f, 0.89f));
+            CreateUpgrade("Upgrade_Customers", new Vector3(6.5f, 0f, -4.55f), "BUSY +", 90, UpgradeType.Customers, new Color(0.96f, 0.57f, 0.82f));
+            CreateUpgrade("Upgrade_Premium", new Vector3(9.0f, 0f, -4.55f), "SALE +", 120, UpgradeType.Premium, new Color(1f, 0.78f, 0.2f));
         }
 
         private void CreateUpgrade(string name, Vector3 position, string label, int price, UpgradeType kind, Color color)
@@ -207,7 +274,7 @@ namespace MiniMart
         private void BuildPlayer()
         {
             GameObject root = new GameObject("Tiny_Mart_Manager");
-            root.transform.position = new Vector3(-5.2f, 0f, -1.2f);
+            root.transform.position = new Vector3(-11.1f, 0f, -3.2f);
             Player = root.AddComponent<PlayerShopper>();
             Player.Initialise();
         }
@@ -223,9 +290,9 @@ namespace MiniMart
                 cam.AddComponent<AudioListener>();
             }
             camera.orthographic = true;
-            camera.orthographicSize = 9.2f;
-            camera.backgroundColor = new Color(0.67f, 0.86f, 0.95f);
-            camera.transform.position = new Vector3(-9f, 12f, -12f);
+            camera.orthographicSize = 14.5f;
+            camera.backgroundColor = new Color(0.65f, 0.88f, 0.98f);
+            camera.transform.position = new Vector3(-18f, 20f, -19f);
             camera.transform.rotation = Quaternion.Euler(55f, 45f, 0f);
             CameraFollower follow = camera.GetComponent<CameraFollower>() ?? camera.gameObject.AddComponent<CameraFollower>();
             follow.target = Player.transform;
@@ -291,7 +358,7 @@ namespace MiniMart
             if (type == UpgradeType.ExtraShelf)
             {
                 save.extraShelves++;
-                CreateShelf(new Vector3(3.2f + ((save.extraShelves - 1) % 2) * 2.8f, 0f, 0.35f - ((save.extraShelves - 1) / 2) * 2.2f), ProductKind.Chips, true);
+                CreateShelf(new Vector3(6.4f + ((save.extraShelves - 1) % 2) * 2.8f, 0f, 1.7f - ((save.extraShelves - 1) / 2) * 2.9f), ProductKind.Chips, true);
                 UI.SetNotification("New shelf unlocked!", 2f);
             }
             else if (type == UpgradeType.Customers)
@@ -383,7 +450,7 @@ namespace MiniMart
             controller.center = new Vector3(0f, 0.63f, 0f);
             visual = new GameObject("Cute_Player_Visual").transform;
             visual.SetParent(transform);
-            BuildToyCharacter(visual, new Color(0.20f, 0.56f, 0.97f), new Color(1f, 0.75f, 0.58f), "Player");
+            BuildToyCharacter(visual, new Color(0.17f, 0.63f, 0.96f), new Color(0.17f, 0.63f, 0.96f), "Player");
         }
 
         private void Update()
@@ -436,7 +503,7 @@ namespace MiniMart
                 game.UI.SetNotification("Checkout is handling the queue automatically.", 1.5f);
                 return;
             }
-            game.UI.SetNotification(carrying == null ? "Walk near a storage box or upgrade station and press E." : "Walk to a shelf and press E to stock it.", 1.6f);
+            game.UI.SetNotification(carrying == null ? "Press E near a farm crate, storage box, or upgrade station." : "Walk to the matching shelf and press E to stock it.", 1.6f);
         }
 
         private void UpdateCarryVisual()
@@ -470,23 +537,24 @@ namespace MiniMart
             return closest;
         }
 
-        public static void BuildToyCharacter(Transform root, Color shirt, Color skin, string label)
+        public static void BuildToyCharacter(Transform root, Color shirt, Color headColor, string label)
         {
             MiniMartGameManager game = MiniMartGameManager.Instance;
-            GameObject body = game.CreatePrimitive(PrimitiveType.Capsule, label + "_Body", root.position + new Vector3(0f, 0.53f, 0f), new Vector3(0.48f, 0.6f, 0.38f), game.MaterialFor(label + "_Shirt", shirt), root);
-            body.transform.localPosition = new Vector3(0f, 0.48f, 0f);
-            GameObject head = game.CreatePrimitive(PrimitiveType.Sphere, label + "_Head", root.position + new Vector3(0f, 1.22f, 0f), new Vector3(0.72f, 0.68f, 0.68f), game.MaterialFor(label + "_Skin", skin), root);
-            head.transform.localPosition = new Vector3(0f, 1.18f, 0f);
+            GameObject body = game.CreatePrimitive(PrimitiveType.Capsule, label + "_BlobBody", root.position, new Vector3(0.52f, 0.48f, 0.44f), game.MaterialFor(label + "_Body", shirt), root);
+            body.transform.localPosition = new Vector3(0f, 0.42f, 0f);
+            GameObject head = game.CreatePrimitive(PrimitiveType.Sphere, label + "_BigHead", root.position, new Vector3(0.66f, 0.61f, 0.61f), game.MaterialFor(label + "_Head", headColor), root);
+            head.transform.localPosition = new Vector3(0f, 0.92f, 0.02f);
             for (int i = -1; i <= 1; i += 2)
             {
-                GameObject arm = game.CreatePrimitive(PrimitiveType.Capsule, label + "_Arm", root.position, new Vector3(0.16f, 0.36f, 0.16f), game.MaterialFor(label + "_Shirt", shirt), root);
-                arm.transform.localPosition = new Vector3(i * 0.37f, 0.55f, 0f);
-                arm.transform.localRotation = Quaternion.Euler(0f, 0f, i * -18f);
+                GameObject foot = game.CreatePrimitive(PrimitiveType.Sphere, label + "_Foot", root.position, new Vector3(0.22f, 0.18f, 0.29f), game.MaterialFor(label + "_Feet", shirt * 0.72f), root);
+                foot.transform.localPosition = new Vector3(i * 0.18f, 0.12f, 0.07f);
             }
-            for (int i = -1; i <= 1; i += 2)
+            GameObject face = game.CreatePrimitive(PrimitiveType.Sphere, label + "_Face", root.position, new Vector3(0.25f, 0.14f, 0.05f), game.MaterialFor(label + "_Face", new Color(0.12f, 0.18f, 0.25f)), root);
+            face.transform.localPosition = new Vector3(0f, 0.92f, 0.31f);
+            if (label.StartsWith("Customer") && int.TryParse(label.Replace("Customer", string.Empty), out int customerIndex) && customerIndex % 2 == 0)
             {
-                GameObject foot = game.CreatePrimitive(PrimitiveType.Cube, label + "_Shoe", root.position, new Vector3(0.25f, 0.16f, 0.38f), game.MaterialFor(label + "_Shoes", new Color(0.20f, 0.25f, 0.34f)), root);
-                foot.transform.localPosition = new Vector3(i * 0.17f, 0.12f, 0.05f);
+                GameObject cap = game.CreatePrimitive(PrimitiveType.Cylinder, label + "_Cap", root.position, new Vector3(0.42f, 0.10f, 0.42f), game.MaterialFor(label + "_Cap", shirt * 0.8f), root);
+                cap.transform.localPosition = new Vector3(0f, 1.26f, 0.02f);
             }
         }
     }
@@ -654,7 +722,7 @@ namespace MiniMart
             visual = new GameObject("CustomerToy").transform;
             visual.SetParent(transform);
             PlayerShopper.BuildToyCharacter(visual, shirts[serial % shirts.Length], skins[(serial + 1) % skins.Length], "Customer" + serial);
-            target = new Vector3(-4.4f, 0f, -1.5f);
+            target = new Vector3(-7.6f, 0f, -3.1f);
             state = CustomerState.Entering;
         }
 
@@ -674,7 +742,12 @@ namespace MiniMart
             stateTimer -= Time.deltaTime;
             if (state == CustomerState.Entering)
             {
-                targetShelf = MiniMartGameManager.Instance.FindShelf((ProductKind)UnityEngine.Random.Range(0, 5));
+                MiniMartGameManager game = MiniMartGameManager.Instance;
+                for (int attempt = 0; attempt < game.Shelves.Count; attempt++)
+                {
+                    ShelfUnit candidate = game.Shelves[UnityEngine.Random.Range(0, game.Shelves.Count)];
+                    if (candidate.Stock > 0) { targetShelf = candidate; break; }
+                }
                 if (targetShelf == null) { BeginLeaving(); return; }
                 target = targetShelf.transform.position + new Vector3(0f, 0f, -1.0f);
                 state = CustomerState.GoingToShelf;
@@ -714,11 +787,12 @@ namespace MiniMart
     public class CameraFollower : MonoBehaviour
     {
         public Transform target;
-        private readonly Vector3 offset = new Vector3(-8.4f, 11.4f, -10.2f);
+        private readonly Vector3 offset = new Vector3(-13.5f, 18f, -15.5f);
+        private readonly Vector3 framingOffset = new Vector3(6f, 0f, 2f);
         private void LateUpdate()
         {
             if (target == null) return;
-            Vector3 desired = target.position + offset;
+            Vector3 desired = target.position + framingOffset + offset;
             transform.position = Vector3.Lerp(transform.position, desired, Time.deltaTime * 4f);
             transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.Euler(55f, 45f, 0f), Time.deltaTime * 5f);
         }
