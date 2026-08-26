@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using TMPro;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
@@ -728,10 +727,10 @@ namespace MiniMart
     public class MiniMartUI : MonoBehaviour
     {
         private MiniMartGameManager game;
-        private TextMeshProUGUI moneyText;
-        private TextMeshProUGUI carryText;
-        private TextMeshProUGUI notificationText;
-        private TextMeshProUGUI helperText;
+        private Text moneyText;
+        private Text carryText;
+        private Text notificationText;
+        private Text helperText;
         private float notificationUntil;
 
         public static MiniMartUI Create(MiniMartGameManager manager)
@@ -750,31 +749,32 @@ namespace MiniMart
 
         private void Build()
         {
-            moneyText = CreateText("Money", new Vector2(28f, -24f), TextAlignmentOptions.Left, 32f, new Color(0.18f, 0.29f, 0.38f));
-            carryText = CreateText("Carry", new Vector2(28f, -70f), TextAlignmentOptions.Left, 20f, new Color(0.18f, 0.29f, 0.38f));
-            helperText = CreateText("Help", new Vector2(28f, 35f), TextAlignmentOptions.Left, 19f, Color.white);
+            moneyText = CreateText("Money", new Vector2(28f, -24f), TextAnchor.UpperLeft, 32, new Color(0.18f, 0.29f, 0.38f));
+            carryText = CreateText("Carry", new Vector2(28f, -70f), TextAnchor.UpperLeft, 20, new Color(0.18f, 0.29f, 0.38f));
+            helperText = CreateText("Help", new Vector2(28f, 35f), TextAnchor.LowerLeft, 19, Color.white);
             RectTransform helperRect = helperText.rectTransform;
             helperRect.anchorMin = new Vector2(0f, 0f);
             helperRect.anchorMax = new Vector2(0f, 0f);
             helperRect.pivot = new Vector2(0f, 0f);
             helperText.text = "WASD  Move      E  Interact      ESC  Pause";
-            notificationText = CreateText("Notification", new Vector2(0f, 70f), TextAlignmentOptions.Center, 24f, Color.white);
+            notificationText = CreateText("Notification", new Vector2(0f, 70f), TextAnchor.LowerCenter, 24, Color.white);
             RectTransform noteRect = notificationText.rectTransform;
             noteRect.anchorMin = new Vector2(0.5f, 0f);
             noteRect.anchorMax = new Vector2(0.5f, 0f);
             noteRect.pivot = new Vector2(0.5f, 0f);
         }
 
-        private TextMeshProUGUI CreateText(string name, Vector2 position, TextAlignmentOptions alignment, float size, Color color)
+        private Text CreateText(string name, Vector2 position, TextAnchor alignment, int size, Color color)
         {
-            GameObject go = new GameObject(name);
-            go.transform.SetParent(transform);
-            TextMeshProUGUI text = go.AddComponent<TextMeshProUGUI>();
-            text.font = TMP_Settings.defaultFontAsset;
+            GameObject go = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer));
+            go.transform.SetParent(transform, false);
+            Text text = go.AddComponent<Text>();
+            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             text.fontSize = size;
             text.color = color;
             text.alignment = alignment;
-            text.textWrappingMode = TextWrappingModes.NoWrap;
+            text.horizontalOverflow = HorizontalWrapMode.Overflow;
+            text.verticalOverflow = VerticalWrapMode.Overflow;
             RectTransform rect = text.rectTransform;
             rect.anchorMin = new Vector2(0f, 1f);
             rect.anchorMax = new Vector2(0f, 1f);
