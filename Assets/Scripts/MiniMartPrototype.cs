@@ -422,6 +422,7 @@ namespace MiniMart
         private CharacterController controller;
         private Transform visual;
         private ProductKind? carrying;
+        private ProductKind? carryVisualKind;
         private Vector3 moveVelocity;
         public ProductKind? Carrying => carrying;
 
@@ -509,20 +510,42 @@ namespace MiniMart
 
         private void UpdateCarryVisual()
         {
-            Transform carry = transform.Find("Carry_Box");
+            Transform carry = transform.Find("Carry_Item");
             if (carrying == null)
             {
                 if (carry != null) carry.gameObject.SetActive(false);
                 return;
             }
+            if (carry != null && carryVisualKind != carrying)
+            {
+                Destroy(carry.gameObject);
+                carry = null;
+            }
             if (carry == null)
             {
-                carry = MiniMartGameManager.Instance.CreatePrimitive(PrimitiveType.Cube, "Carry_Box", transform.position, Vector3.one, MiniMartGameManager.Instance.MaterialFor("Carry", MiniMartGameManager.Instance.ProductColor(carrying.Value)), transform).transform;
-                carry.localPosition = new Vector3(0f, 0.75f, 0.48f);
-                carry.localScale = new Vector3(0.42f, 0.36f, 0.34f);
+                GameObject item;
+                if (carrying == ProductKind.Egg)
+                {
+                    GameObject eggAsset = Resources.Load<GameObject>("Items/FarmEgg");
+                    item = eggAsset != null
+                        ? Instantiate(eggAsset, transform)
+                        : MiniMartGameManager.Instance.CreatePrimitive(PrimitiveType.Sphere, "Carry_Item", transform.position, Vector3.one, MiniMartGameManager.Instance.MaterialFor("CarryEggFallback", MiniMartGameManager.Instance.ProductColor(ProductKind.Egg)), transform);
+                    item.name = "Carry_Item";
+                    item.transform.localPosition = new Vector3(0f, 0.64f, 0.46f);
+                    item.transform.localRotation = Quaternion.Euler(0f, 25f, 0f);
+                    item.transform.localScale = eggAsset != null ? Vector3.one * 0.20f : new Vector3(0.26f, 0.34f, 0.26f);
+                }
+                else
+                {
+                    item = MiniMartGameManager.Instance.CreatePrimitive(PrimitiveType.Cube, "Carry_Item", transform.position, Vector3.one, MiniMartGameManager.Instance.MaterialFor("Carry", MiniMartGameManager.Instance.ProductColor(carrying.Value)), transform);
+                    item.transform.localPosition = new Vector3(0f, 0.70f, 0.46f);
+                    item.transform.localScale = new Vector3(0.42f, 0.36f, 0.34f);
+                }
+                carry = item.transform;
+                carryVisualKind = carrying;
             }
             carry.gameObject.SetActive(true);
-            carry.GetComponent<Renderer>().sharedMaterial = MiniMartGameManager.Instance.MaterialFor("Carry_" + carrying.Value, MiniMartGameManager.Instance.ProductColor(carrying.Value));
+            foreach (Renderer renderer in carry.GetComponentsInChildren<Renderer>(true)) renderer.sharedMaterial = MiniMartGameManager.Instance.MaterialFor("Carry_" + carrying.Value, MiniMartGameManager.Instance.ProductColor(carrying.Value));
         }
 
         private T FindClosest<T>(IEnumerable<T> candidates, float radius) where T : Component
@@ -638,9 +661,23 @@ namespace MiniMart
             MiniMartGameManager game = MiniMartGameManager.Instance;
             GameObject baseRing = game.CreatePrimitive(PrimitiveType.Cylinder, producerLabel + "_Marker", transform.position + new Vector3(0f, 0.08f, 0f), new Vector3(0.68f, 0.08f, 0.68f), game.MaterialFor("FarmMarker_" + kind, new Color(0.92f, 0.75f, 0.32f)), transform);
             baseRing.transform.localPosition = new Vector3(0f, 0.08f, 0f);
-            PrimitiveType shape = kind == ProductKind.Egg || kind == ProductKind.Apple ? PrimitiveType.Sphere : PrimitiveType.Cube;
-            harvestVisual = game.CreatePrimitive(shape, producerLabel + "_Ready", transform.position, kind == ProductKind.Egg ? new Vector3(0.38f, 0.50f, 0.38f) : new Vector3(0.46f, 0.46f, 0.46f), game.MaterialFor("FarmOutput_" + kind, color), transform);
-            harvestVisual.transform.localPosition = new Vector3(0f, 0.50f, 0f);
+            if (kind == ProductKind.Egg)
+            {
+                GameObject eggAsset = Resources.Load<GameObject>("Items/FarmEgg");
+                harvestVisual = eggAsset != null
+                    ? Instantiate(eggAsset, transform)
+                    : game.CreatePrimitive(PrimitiveType.Sphere, producerLabel + "_Ready", transform.position, new Vector3(0.38f, 0.50f, 0.38f), game.MaterialFor("FarmOutput_" + kind, color), transform);
+                harvestVisual.name = producerLabel + "_EggReady";
+                harvestVisual.transform.localPosition = new Vector3(0f, 0.16f, 0f);
+                harvestVisual.transform.localScale = eggAsset != null ? Vector3.one * 0.26f : Vector3.one;
+            }
+            else
+            {
+                PrimitiveType shape = kind == ProductKind.Apple ? PrimitiveType.Sphere : PrimitiveType.Cube;
+                harvestVisual = game.CreatePrimitive(shape, producerLabel + "_Ready", transform.position, new Vector3(0.46f, 0.46f, 0.46f), game.MaterialFor("FarmOutput_" + kind, color), transform);
+                harvestVisual.transform.localPosition = new Vector3(0f, 0.50f, 0f);
+            }
+            foreach (Renderer renderer in harvestVisual.GetComponentsInChildren<Renderer>(true)) renderer.sharedMaterial = game.MaterialFor("FarmOutput_" + kind, color);
         }
 
         public bool TryHarvest()
