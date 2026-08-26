@@ -116,21 +116,36 @@ namespace MiniMart
 
         private void BuildCropBed(Vector3 position, string label, Material soil, ProductKind product, Color fruitColor)
         {
-            // A brown ground slab guarantees a readable cultivated patch even while the imported
-            // soil asset is being processed by Unity. The new supplied soil model decorates the same patch.
-            CreatePrimitive(PrimitiveType.Cube, label + "_Earth", position + new Vector3(0f, 0.12f, 0f),
-                new Vector3(4.35f, 0.24f, 3.05f), soil);
-            Material soilTint = MaterialFor("PlotSoil", new Color(0.55f, 0.36f, 0.20f));
-            Transform plot = ModelKit.SpawnProp(null, "Props/FarmSoilPlot", soilTint, 0.42f, 3, Vector3.zero);
-            if (plot != null)
-            {
-                plot.name = label + "_Soil_Plot";
-                plot.position = position + new Vector3(0f, 0.20f, 0f);
-            }
+            // This is the user's supplied farm-spot FBX. It is spawned without the runtime paint
+            // helper and without a fallback cube, so the asset's own soil shape and imported material
+            // remain visible instead of becoming a plain brown rectangle.
+            SpawnFarmSoilPlot(position, label);
 
             // The producer creates exactly four real crop models on this earth plot and removes one
             // per interaction. No loose crate, nest, or separate collection marker is used.
-            CreateFarmProducer(position, product, GameConfig.ProductLabel(product), fruitColor, 0f, 0.42f, false);
+            CreateFarmProducer(position, product, GameConfig.ProductLabel(product), fruitColor, 0f, 0.56f, false);
+        }
+
+        private Transform SpawnFarmSoilPlot(Vector3 position, string label)
+        {
+            GameObject asset = Resources.Load<GameObject>("Props/FarmSoilPlot");
+            if (asset == null)
+            {
+                Debug.LogWarning("FarmSoilPlot.fbx is missing from Resources/Props.");
+                return null;
+            }
+
+            GameObject pivot = new GameObject(label + "_Soil_Plot");
+            GameObject model = Instantiate(asset, pivot.transform);
+            model.name = "FarmSoilPlot_Mesh";
+            model.transform.localPosition = Vector3.zero;
+            model.transform.localRotation = Quaternion.Euler(ModelKit.ZUpFix);
+            model.transform.localScale = Vector3.one;
+            ModelKit.KeepOneLod(model, 0);
+            ModelKit.SitOnGround(pivot.transform, model.transform, 0.56f);
+            ModelKit.StripColliders(model);
+            pivot.transform.position = position;
+            return pivot.transform;
         }
 
         private void BuildChickenCoop(Vector3 position)
