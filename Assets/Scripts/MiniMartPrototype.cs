@@ -234,7 +234,7 @@ namespace MiniMart
 
         private void BuildLighting()
         {
-            Light sun = FindFirstObjectByType<Light>();
+            Light sun = FindAnyObjectByType<Light>();
             if (sun == null)
             {
                 GameObject lightGo = new GameObject("Sun");
@@ -430,7 +430,7 @@ namespace MiniMart
                 return;
             }
 
-            UpgradeStation closestUpgrade = FindClosest(FindObjectsByType<UpgradeStation>(FindObjectsSortMode.None), 2.1f);
+            UpgradeStation closestUpgrade = FindClosest(FindObjectsByType<UpgradeStation>(), 2.1f);
             if (closestUpgrade != null) { closestUpgrade.TryPurchase(); return; }
             if (Vector3.Distance(transform.position, game.Checkout.transform.position) < 2.2f)
             {
@@ -774,7 +774,7 @@ namespace MiniMart
             text.fontSize = size;
             text.color = color;
             text.alignment = alignment;
-            text.enableWordWrapping = false;
+            text.textWrappingMode = TextWrappingModes.NoWrap;
             RectTransform rect = text.rectTransform;
             rect.anchorMin = new Vector2(0f, 1f);
             rect.anchorMax = new Vector2(0f, 1f);
