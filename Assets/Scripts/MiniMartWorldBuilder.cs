@@ -271,34 +271,50 @@ namespace MiniMart
 
         private void BuildChicken(Vector3 position, string name)
         {
-            GameObject root = new GameObject(name);
-            root.transform.position = position;
-
-            // The uploaded low-poly chicken is Z up. A saturated cream-gold material makes it
-            // visible from the isometric camera, with a red comb accent matching the reference.
-            Transform body = ModelKit.SpawnProp(root.transform, "Props/FarmChicken",
-                MaterialFor("NestChickenCream", new Color(1f, 0.72f, 0.22f)), ChickenHeight, 0, ModelKit.ZUpFix);
-            if (body == null)
+            // The Easy Primitive Animals chicken is a multi-part primitive prefab, but its materials
+            // use the built-in Standard shader which URP renders magenta. Instead of upgrading twelve
+            // materials on disk, we instantiate it and repaint every renderer with URP materials
+            // carrying the original colours.
+            GameObject prefab = Resources.Load<GameObject>(ModelKit.ChickenPrefab);
+            if (prefab != null)
             {
-                // No imported hen: fall back to the primitive bird so the coop is not empty.
-                BuildToyChicken(position, name);
-                Destroy(root);
+                GameObject hen = Instantiate(prefab);
+                hen.name = name;
+                hen.transform.position = position;
+                hen.transform.rotation = Quaternion.Euler(0f, 160f, 0f);
+                hen.transform.localScale = Vector3.one * 0.85f;
+                RepaintChicken(hen);
                 return;
             }
 
-            body.name = "Nest_Chicken_Body";
-            AddChickenComb(root.transform);
-            // No RoamingAnimal is attached: this chicken stays standing on the nest rim.
+            // Fallback: primitive blobs.
+            BuildToyChicken(position, name);
         }
 
-        private void AddChickenComb(Transform chicken)
+        /// <summary>
+        /// Maps the pack's built-in shader material names to URP colours so the chicken does not
+        /// render magenta. The pack uses: White (body/wings), Orange (feet/beak), Dark Red (comb),
+        /// Gold (legs), Dark Pink (wattle).
+        /// </summary>
+        private void RepaintChicken(GameObject hen)
         {
-            // A simple, readable red comb supplies the key colour accent without modifying the
-            // uploaded mesh. It is parented to the stationary chicken, so it cannot drift away.
-            GameObject comb = CreateDecor(PrimitiveType.Cube, "Nest_Chicken_Red_Comb",
-                chicken.position + new Vector3(0f, ChickenHeight * 0.96f, 0.02f),
-                new Vector3(0.18f, 0.18f, 0.10f), MaterialFor("NestChickenComb", new Color(0.88f, 0.10f, 0.08f)), chicken);
-            comb.transform.localRotation = Quaternion.Euler(0f, 0f, 8f);
+            Material white = MaterialFor("ChickenWhite", new Color(1f, 1f, 1f));
+            Material orange = MaterialFor("ChickenOrange", new Color(1f, 0.47f, 0.12f));
+            Material darkRed = MaterialFor("ChickenDarkRed", new Color(0.80f, 0.14f, 0.14f));
+            Material gold = MaterialFor("ChickenGold", new Color(1f, 0.86f, 0f));
+            Material darkPink = MaterialFor("ChickenDarkPink", new Color(0.85f, 0.32f, 0.42f));
+
+            foreach (Renderer renderer in hen.GetComponentsInChildren<Renderer>(true))
+            {
+                if (renderer.sharedMaterial == null) { renderer.sharedMaterial = white; continue; }
+                string matName = renderer.sharedMaterial.name;
+                if (matName.Contains("White")) renderer.sharedMaterial = white;
+                else if (matName.Contains("Orange")) renderer.sharedMaterial = orange;
+                else if (matName.Contains("Dark Red")) renderer.sharedMaterial = darkRed;
+                else if (matName.Contains("Gold")) renderer.sharedMaterial = gold;
+                else if (matName.Contains("Dark Pink") || matName.Contains("Pink")) renderer.sharedMaterial = darkPink;
+                else renderer.sharedMaterial = white;
+            }
         }
 
         private void BuildToyChicken(Vector3 position, string label)

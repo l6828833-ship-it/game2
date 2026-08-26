@@ -21,6 +21,9 @@ namespace MiniMart
         /// only ever be a single flat tone. This one keeps its comb and beak in vertex colours.
         /// </summary>
         public const string ChickenModel = "Props/ChickenBrown";
+
+        /// <summary>ithappy Animals_FREE chicken prefab, with its own AnimatorController and idle clip.</summary>
+        public const string ChickenPrefab = "ithappy/EasyChicken";
         public const string EggModel = "Items/Egg";
         public const string LegacyEggModel = "Items/FarmEgg";
 
