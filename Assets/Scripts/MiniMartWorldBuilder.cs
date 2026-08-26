@@ -99,7 +99,9 @@ namespace MiniMart
         {
             Material soil = MaterialFor("FarmSoil", new Color(0.48f, 0.25f, 0.12f));
             Material fence = MaterialFor("FarmFence", new Color(0.68f, 0.42f, 0.18f));
-            CreatePrimitive(PrimitiveType.Cube, "Farm_Path", new Vector3(-12f, 0.06f, -2.2f), new Vector3(8.5f, 0.08f, 2.2f), MaterialFor("FarmPath", new Color(0.91f, 0.72f, 0.40f)));
+            // Two slim path pieces make a clean gate between shop and farm without covering the farm soil.
+            CreatePrimitive(PrimitiveType.Cube, "Farm_Walkway", new Vector3(-14.1f, 0.06f, -2.2f), new Vector3(5.0f, 0.08f, 1.35f), MaterialFor("FarmPath", new Color(0.91f, 0.72f, 0.40f)));
+            CreatePrimitive(PrimitiveType.Cube, "Farm_Gate_Path", new Vector3(-10.8f, 0.06f, -2.2f), new Vector3(1.4f, 0.08f, 2.5f), MaterialFor("FarmPath", new Color(0.91f, 0.72f, 0.40f)));
             CreatePrimitive(PrimitiveType.Cube, "Farm_Zone", new Vector3(-16f, 0.05f, 2.1f), new Vector3(8.5f, 0.1f, 9f), MaterialFor("FarmGrass", new Color(0.58f, 0.88f, 0.34f)));
             // Each bed grows what the shop actually sells, so every shelf has a source.
             BuildCropBed(new Vector3(-18f, 0f, 3.6f), "Tomato_Bed", soil, ProductKind.Tomato, new Color(0.91f, 0.24f, 0.20f));
@@ -114,28 +116,21 @@ namespace MiniMart
 
         private void BuildCropBed(Vector3 position, string label, Material soil, ProductKind product, Color fruitColor)
         {
-            // The supplied tilled-land asset is now the actual harvest location. Its larger target
-            // height makes the soil read clearly from the isometric game camera.
+            // A brown ground slab guarantees a readable cultivated patch even while the imported
+            // soil asset is being processed by Unity. The new supplied soil model decorates the same patch.
+            CreatePrimitive(PrimitiveType.Cube, label + "_Earth", position + new Vector3(0f, 0.12f, 0f),
+                new Vector3(4.35f, 0.24f, 3.05f), soil);
             Material soilTint = MaterialFor("PlotSoil", new Color(0.55f, 0.36f, 0.20f));
-            Transform plotLeft = ModelKit.SpawnProp(null, "Props/PlotOfLand", soilTint, PlotHeight, 3, Vector3.zero);
-            Transform plotRight = ModelKit.SpawnProp(null, "Props/PlotOfLand", soilTint, PlotHeight, 3, Vector3.zero);
-            if (plotLeft != null && plotRight != null)
+            Transform plot = ModelKit.SpawnProp(null, "Props/FarmSoilPlot", soilTint, 0.42f, 3, Vector3.zero);
+            if (plot != null)
             {
-                plotLeft.name = label + "_Plot_L";
-                plotRight.name = label + "_Plot_R";
-                plotLeft.position = position + new Vector3(-1.05f, 0f, 0f);
-                plotRight.position = position + new Vector3(1.05f, 0f, 0f);
-                plotRight.rotation = Quaternion.Euler(0f, 180f, 0f);
-            }
-            else
-            {
-                CreatePrimitive(PrimitiveType.Cube, label + "_Soil", position + new Vector3(0f, 0.18f, 0f),
-                    new Vector3(4.2f, 0.36f, 2.2f), soil);
+                plot.name = label + "_Soil_Plot";
+                plot.position = position + new Vector3(0f, 0.20f, 0f);
             }
 
-            // The producer creates exactly four real crop models on this plot and removes one for
-            // every interaction. No separate marker, crate, or loose nest is needed.
-            CreateFarmProducer(position, product, GameConfig.ProductLabel(product), fruitColor, 0f, PlotHeight, false);
+            // The producer creates exactly four real crop models on this earth plot and removes one
+            // per interaction. No loose crate, nest, or separate collection marker is used.
+            CreateFarmProducer(position, product, GameConfig.ProductLabel(product), fruitColor, 0f, 0.42f, false);
         }
 
         private void BuildChickenCoop(Vector3 position)
