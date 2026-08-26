@@ -3,21 +3,50 @@ using UnityEngine;
 
 namespace MiniMart
 {
-    /// <summary>A single product shelf. Shows its stock as items on the boards plus a status light.</summary>
+    /// <summary>
+    /// A sellable store display. Normal products use the three-board shelf; eggs use the user's
+    /// four-slot or six-slot table and sit only in its intended recessed socket positions.
+    /// </summary>
     public class ShelfUnit : MonoBehaviour
     {
+        private static readonly Vector3[] EggSlotsFour =
+        {
+            new Vector3(-0.42f, 0.72f, -0.24f),
+            new Vector3(0.30f, 0.72f, -0.24f),
+            new Vector3(-0.22f, 0.72f, 0.26f),
+            new Vector3(0.42f, 0.72f, 0.24f)
+        };
+
+        private static readonly Vector3[] EggSlotsSix =
+        {
+            new Vector3(-0.42f, 0.72f, -0.27f),
+            new Vector3(0.10f, 0.72f, -0.30f),
+            new Vector3(0.44f, 0.72f, -0.11f),
+            new Vector3(-0.43f, 0.72f, 0.18f),
+            new Vector3(-0.03f, 0.72f, 0.20f),
+            new Vector3(0.39f, 0.72f, 0.28f)
+        };
+
         public ProductKind Product { get; private set; }
         public int Stock { get; private set; }
-        public bool IsFull => Stock >= GameConfig.ShelfCapacity;
+        public int Capacity => eggTable ? (eggTableUpgraded ? 6 : 4) : GameConfig.ShelfCapacity;
+        public bool IsFull => Stock >= Capacity;
         public bool IsEmpty => Stock <= 0;
+        public bool IsEggTable => eggTable;
+        public bool CanUpgradeEggTable => eggTable && !eggTableUpgraded;
 
         private readonly List<GameObject> visuals = new List<GameObject>();
         private int unitsPerVisual = 1;
+        private bool eggTable;
+        private bool eggTableUpgraded;
+        private Transform tableMesh;
 
         public void Initialise(ProductKind kind, int stock)
         {
             Product = kind;
-            Stock = Mathf.Clamp(stock, 0, GameConfig.ShelfCapacity);
+            eggTable = false;
+            eggTableUpgraded = false;
+            Stock = Mathf.Clamp(stock, 0, Capacity);
             MiniMartGameManager game = MiniMartGameManager.Instance;
             Material wood = game.MaterialFor("ShelfWood", new Color(0.49f, 0.27f, 0.15f));
 
@@ -40,7 +69,31 @@ namespace MiniMart
             RebuildVisuals();
         }
 
-        /// <summary>Shopper picks one item off the shelf.</summary>
+        /// <summary>Creates the dedicated in-store egg table using the user-supplied table model.</summary>
+        public void InitialiseEggTable(int stock, bool upgraded)
+        {
+            Product = ProductKind.Egg;
+            eggTable = true;
+            eggTableUpgraded = upgraded;
+            Stock = Mathf.Clamp(stock, 0, Capacity);
+            BuildEggTableMesh();
+            BuildProductPool();
+            RebuildVisuals();
+        }
+
+        /// <summary>Switches the table model and exposes the two extra egg sockets, without losing stock.</summary>
+        public void UpgradeEggTable()
+        {
+            if (!CanUpgradeEggTable) return;
+            eggTableUpgraded = true;
+            ClearProductPool();
+            if (tableMesh != null) Destroy(tableMesh.gameObject);
+            BuildEggTableMesh();
+            BuildProductPool();
+            RebuildVisuals();
+        }
+
+        /// <summary>Shopper picks one item off the display.</summary>
         public bool TakeOne()
         {
             if (Stock <= 0) return false;
@@ -61,23 +114,39 @@ namespace MiniMart
         public int Restock(ProductKind kind, int amount)
         {
             if (kind != Product || amount <= 0) return 0;
-            int placed = Mathf.Min(amount, GameConfig.ShelfCapacity - Stock);
+            int placed = Mathf.Min(amount, Capacity - Stock);
             if (placed <= 0) return 0;
             Stock += placed;
             RebuildVisuals();
             return placed;
         }
 
-        /// <summary>
-        /// Every slot is created once and then just shown or hidden, rather than destroying and
-        /// rebuilding the row on each sale.
-        ///
-        /// Products with a real mesh are stocked at half density: those models run to fifteen
-        /// thousand triangles each, and fifteen of them per shelf across eight shelves is a lot of
-        /// geometry for something a few pixels tall. One crate stands for two units instead.
-        /// </summary>
+        private void BuildEggTableMesh()
+        {
+            MiniMartGameManager game = MiniMartGameManager.Instance;
+            Material wood = game.MaterialFor("EggTableWood", new Color(0.58f, 0.34f, 0.16f));
+            string model = eggTableUpgraded ? "Props/EggTable6" : "Props/EggTable4";
+            tableMesh = ModelKit.SpawnProp(transform, model, wood, 0.95f, 0, ModelKit.ZUpFix);
+            if (tableMesh == null)
+            {
+                // The store remains playable if a model import has not completed yet.
+                GameObject fallback = game.CreateDecor(PrimitiveType.Cube, "Egg_Table_Fallback", transform.position,
+                    new Vector3(1.45f, 0.72f, 1.10f), wood, transform);
+                fallback.transform.localPosition = new Vector3(0f, 0.36f, 0f);
+                tableMesh = fallback.transform;
+            }
+            tableMesh.name = eggTableUpgraded ? "Egg_Table_6_Slots" : "Egg_Table_4_Slots";
+        }
+
+        /// <summary>Creates each display object once and then shows only the stocked positions.</summary>
         private void BuildProductPool()
         {
+            if (eggTable)
+            {
+                BuildEggTableProductPool();
+                return;
+            }
+
             Transform displayRoot = new GameObject("Products").transform;
             displayRoot.SetParent(transform, false);
             displayRoot.localPosition = Vector3.zero;
@@ -114,7 +183,6 @@ namespace MiniMart
                         continue;
                     }
                     pivot.localPosition = slot;
-                    // A little turn each so a row of them does not look stamped out.
                     pivot.localRotation = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
                     product = pivot.gameObject;
                 }
@@ -130,9 +198,41 @@ namespace MiniMart
             }
         }
 
+        private void BuildEggTableProductPool()
+        {
+            Transform displayRoot = new GameObject("Egg_Slots").transform;
+            displayRoot.SetParent(transform, false);
+            displayRoot.localPosition = Vector3.zero;
+
+            MiniMartGameManager game = MiniMartGameManager.Instance;
+            Material eggMaterial = game.MaterialFor("Product_Egg", Color.white);
+            ProductVisuals.TryGet(ProductKind.Egg, out ProductVisuals.Visual visual);
+            Vector3[] slots = eggTableUpgraded ? EggSlotsSix : EggSlotsFour;
+            unitsPerVisual = 1;
+
+            for (int index = 0; index < slots.Length; index++)
+            {
+                Transform pivot = ModelKit.SpawnProp(displayRoot, visual.Model, eggMaterial,
+                    visual.ShelfHeight, visual.DetailLod, visual.UpFix);
+                if (pivot == null) break;
+                pivot.name = "Egg_Slot_" + (index + 1);
+                pivot.localPosition = slots[index];
+                pivot.localRotation = Quaternion.Euler(0f, index * 37f, 0f);
+                pivot.gameObject.SetActive(false);
+                visuals.Add(pivot.gameObject);
+            }
+        }
+
+        private void ClearProductPool()
+        {
+            for (int i = 0; i < visuals.Count; i++)
+                if (visuals[i] != null) Destroy(visuals[i]);
+            visuals.Clear();
+        }
+
         private void RebuildVisuals()
         {
-            int shown = Mathf.CeilToInt(Stock / (float)Mathf.Max(1, unitsPerVisual));
+            int shown = eggTable ? Stock : Mathf.CeilToInt(Stock / (float)Mathf.Max(1, unitsPerVisual));
             for (int i = 0; i < visuals.Count; i++)
             {
                 if (visuals[i] == null) continue;

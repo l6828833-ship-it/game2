@@ -17,6 +17,7 @@ namespace MiniMart
         public const int StartingMoney = 100;
         public const int ShelfCapacity = 15;
         public const int CarryCapacity = 4;
+        public const int EggTableUpgradeCost = 40;
 
         /// <summary>Shoppers on the floor at once, and how brisk the door is at full reputation.</summary>
         public const int MaxShoppers = 6;
@@ -76,9 +77,10 @@ namespace MiniMart
     [System.Serializable]
     public class StoreSave
     {
-        public int version = 2;
+        public int version = 3;
         public int money = GameConfig.StartingMoney;
-        // Upgrade levels used to live here. Old saves keep the keys and JsonUtility ignores them.
+        // This is the one focused store expansion: the egg table grows from four to six sockets.
+        public bool eggTableUpgraded;
         public int day = 1;
         public float reputation = 80f;
         public int lifetimeEarnings;

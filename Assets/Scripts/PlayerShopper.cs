@@ -7,7 +7,7 @@ namespace MiniMart
     /// <summary>The shopkeeper: walks the farm and the shop floor, harvests crates and stocks shelves.</summary>
     public class PlayerShopper : MonoBehaviour
     {
-        private enum TargetKind { None, Harvest, Shelf, Checkout }
+        private enum TargetKind { None, Harvest, Shelf, EggTableUpgrade, Checkout }
 
         private const string StaticModelPath = "Characters/FarmPlayer";
 
@@ -263,6 +263,19 @@ namespace MiniMart
                 if (targetShelf != null) { targetKind = TargetKind.Shelf; return; }
             }
 
+            if (carrying == null)
+            {
+                for (int i = 0; i < game.Shelves.Count; i++)
+                {
+                    ShelfUnit shelf = game.Shelves[i];
+                    if (shelf == null || !shelf.CanUpgradeEggTable) continue;
+                    if (Vector3.Distance(transform.position, shelf.transform.position) > range) continue;
+                    targetShelf = shelf;
+                    targetKind = TargetKind.EggTableUpgrade;
+                    return;
+                }
+            }
+
             if (game.Checkout != null && Vector3.Distance(transform.position, game.Checkout.transform.position) < 2.8f)
                 targetKind = TargetKind.Checkout;
         }
@@ -313,6 +326,10 @@ namespace MiniMart
 
                 case TargetKind.Shelf:
                     StockShelf(targetShelf);
+                    return;
+
+                case TargetKind.EggTableUpgrade:
+                    game.TryUpgradeEggTable(targetShelf);
                     return;
 
                 case TargetKind.Checkout:
@@ -390,8 +407,14 @@ namespace MiniMart
                         return;
                     }
                     Prompt = targetShelf.IsFull
-                        ? GameConfig.ProductLabel(targetShelf.Product) + " shelf is full (" + targetShelf.Stock + "/" + GameConfig.ShelfCapacity + ")"
-                        : "[E]  Stock " + GameConfig.ProductLabel(targetShelf.Product) + " shelf  (" + targetShelf.Stock + "/" + GameConfig.ShelfCapacity + ")";
+                        ? GameConfig.ProductLabel(targetShelf.Product) + " shelf is full (" + targetShelf.Stock + "/" + targetShelf.Capacity + ")"
+                        : "[E]  Stock " + GameConfig.ProductLabel(targetShelf.Product) + " shelf  (" + targetShelf.Stock + "/" + targetShelf.Capacity + ")";
+                    return;
+
+                case TargetKind.EggTableUpgrade:
+                    Prompt = game.Money >= GameConfig.EggTableUpgradeCost
+                        ? "[E]  Expand egg table: 4 to 6 places  ($" + GameConfig.EggTableUpgradeCost + ")"
+                        : "Egg table expansion needs $" + GameConfig.EggTableUpgradeCost;
                     return;
 
                 case TargetKind.Checkout:

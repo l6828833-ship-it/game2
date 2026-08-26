@@ -14,6 +14,7 @@ namespace MiniMart
         public static MiniMartGameManager Instance { get; private set; }
 
         public int Money { get; private set; }
+        public bool EggTableUpgraded => save.eggTableUpgraded;
         public int Day => save.day;
         public float Reputation => save.reputation;
         public DayPhase Phase { get; private set; }
@@ -203,6 +204,26 @@ namespace MiniMart
             Save();
         }
 
+        /// <summary>Expands only the egg table from four fixed sockets to six fixed sockets.</summary>
+        public bool TryUpgradeEggTable(ShelfUnit table)
+        {
+            if (table == null || !table.CanUpgradeEggTable || save.eggTableUpgraded) return false;
+            if (Money < GameConfig.EggTableUpgradeCost)
+            {
+                Sfx.Play(SfxKind.Deny);
+                UI.SetNotification("Need $" + GameConfig.EggTableUpgradeCost + " to expand the egg table.", 2f);
+                return false;
+            }
+
+            Money -= GameConfig.EggTableUpgradeCost;
+            save.eggTableUpgraded = true;
+            table.UpgradeEggTable();
+            Sfx.Play(SfxKind.Sale);
+            UI.SetNotification("Egg table upgraded: 6 egg places.", 2.2f);
+            Save();
+            return true;
+        }
+
         public void CompleteSale(CustomerAgent customer)
         {
             int value = customer.BasketValue;
@@ -329,7 +350,7 @@ namespace MiniMart
             if (save == null) save = new StoreSave();
             save.day = Mathf.Max(1, save.day);
             save.reputation = Mathf.Clamp(save.reputation <= 0f ? 80f : save.reputation, 1f, 100f);
-            save.version = 2;
+            save.version = 3;
             Money = Mathf.Max(0, save.money);
         }
 

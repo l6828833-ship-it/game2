@@ -353,13 +353,26 @@ namespace MiniMart
         {
             // Only the four farm products, doubled up. A shelf of something the farm cannot grow
             // would empty out and stay empty, since harvesting is the only way to restock.
-            ProductKind[] backRow = { ProductKind.Tomato, ProductKind.Watermelon, ProductKind.Banana, ProductKind.Egg };
+            ProductKind[] backRow = { ProductKind.Tomato, ProductKind.Watermelon, ProductKind.Banana, ProductKind.Tomato };
             ProductKind[] frontRow = { ProductKind.Banana, ProductKind.Tomato, ProductKind.Watermelon, ProductKind.Banana };
             for (int i = 0; i < StoreLayout.ShelfColumns.Length; i++)
             {
                 CreateShelf(new Vector3(StoreLayout.ShelfColumns[i], 0f, StoreLayout.BackRowZ), backRow[i], GameConfig.ShelfCapacity - 3);
                 CreateShelf(new Vector3(StoreLayout.ShelfColumns[i], 0f, StoreLayout.FrontRowZ), frontRow[i], GameConfig.ShelfCapacity - 3);
             }
+
+            // Dedicated egg furniture on the open right side of the shop, away from the customer lanes,
+            // the coolers, the produce stand, and the till. It begins with four eggs in four sockets.
+            CreateEggTable(new Vector3(7.0f, 0f, 1.65f));
+        }
+
+        private void CreateEggTable(Vector3 position)
+        {
+            GameObject root = new GameObject("Egg_Table");
+            root.transform.position = position;
+            ShelfUnit table = root.AddComponent<ShelfUnit>();
+            table.InitialiseEggTable(4, MiniMartGameManager.Instance.EggTableUpgraded);
+            Shelves.Add(table);
         }
 
         private void CreateShelf(Vector3 position, ProductKind product, int stock)
