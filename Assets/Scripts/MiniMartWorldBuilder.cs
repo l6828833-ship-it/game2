@@ -143,6 +143,9 @@ namespace MiniMart
             model.transform.localScale = Vector3.one;
             ModelKit.KeepOneLod(model, 0);
             ModelKit.SitOnGround(pivot.transform, model.transform, 0.56f);
+            // Colour the actual FBX mesh, not an extra primitive beneath it. The Lit material keeps
+            // the soil asset's edges, normals, and light/shadow detail visible from the game camera.
+            ModelKit.Paint(model, MaterialFor("FarmSpotWarmSoil", new Color(0.48f, 0.25f, 0.11f)));
             ModelKit.StripColliders(model);
             pivot.transform.position = position;
             return pivot.transform;

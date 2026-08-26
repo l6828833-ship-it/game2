@@ -54,6 +54,9 @@ namespace MiniMart
             if (ProductVisuals.TryGet(Product, out ProductVisuals.Visual visual))
             {
                 float height = modelHeight > 0f ? modelHeight : visual.CropHeight * 2.0f;
+                // Tomatoes need a smaller farm presence than their shelf and carry models so all
+                // four fit neatly on the supplied soil patch without dominating the player.
+                if (Product == ProductKind.Tomato) height *= 0.55f;
                 Transform item = ModelKit.SpawnProp(transform, visual.Model, output, height, visual.DetailLod, visual.UpFix);
                 if (item != null)
                 {
