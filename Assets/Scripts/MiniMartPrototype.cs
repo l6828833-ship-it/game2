@@ -429,9 +429,9 @@ namespace MiniMart
         public void Initialise()
         {
             controller = gameObject.AddComponent<CharacterController>();
-            controller.radius = 0.34f;
-            controller.height = 1.25f;
-            controller.center = new Vector3(0f, 0.63f, 0f);
+            controller.radius = 0.38f;
+            controller.height = 1.52f;
+            controller.center = new Vector3(0f, 0.76f, 0f);
             visual = new GameObject("Yellow_Farm_Player").transform;
             visual.SetParent(transform, false);
             GameObject playerAsset = Resources.Load<GameObject>("Characters/FarmPlayer");
@@ -439,9 +439,9 @@ namespace MiniMart
             {
                 GameObject importedPlayer = Instantiate(playerAsset, visual);
                 importedPlayer.name = "Farm_Player_Asset";
-                importedPlayer.transform.localPosition = new Vector3(0f, 0f, 0f);
+                importedPlayer.transform.localPosition = Vector3.zero;
                 importedPlayer.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
-                importedPlayer.transform.localScale = Vector3.one * 0.78f;
+                importedPlayer.transform.localScale = Vector3.one * 0.72f;
                 Material yellow = MiniMartGameManager.Instance.MaterialFor("PlayerYellow", new Color(1f, 0.82f, 0.10f));
                 foreach (Renderer renderer in importedPlayer.GetComponentsInChildren<Renderer>(true)) renderer.sharedMaterial = yellow;
             }
@@ -470,13 +470,13 @@ namespace MiniMart
             {
                 transform.forward = Vector3.Slerp(transform.forward, inputDirection, 12f * Time.deltaTime);
                 walkPhase += Time.deltaTime * 8.5f;
-                visual.localPosition = Vector3.Lerp(visual.localPosition, new Vector3(0f, 0.02f, 0f), Time.deltaTime * 9f);
-                visual.localRotation = Quaternion.Slerp(visual.localRotation, Quaternion.Euler(0f, 0f, Mathf.Sin(walkPhase) * 2.2f), Time.deltaTime * 10f);
+                visual.localPosition = Vector3.zero;
+                visual.localRotation = Quaternion.identity;
             }
             else
             {
-                visual.localPosition = Vector3.Lerp(visual.localPosition, Vector3.zero, Time.deltaTime * 9f);
-                visual.localRotation = Quaternion.Slerp(visual.localRotation, Quaternion.identity, Time.deltaTime * 9f);
+                visual.localPosition = Vector3.zero;
+                visual.localRotation = Quaternion.identity;
             }
             UpdateCarryVisual();
         }
