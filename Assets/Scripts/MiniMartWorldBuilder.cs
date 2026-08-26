@@ -11,7 +11,7 @@ namespace MiniMart
     {
         /// <summary>Prop sizes in metres. The nest is wide and shallow, so its height stays low.</summary>
         private const float NestHeight = 0.34f;
-        private const float ChickenHeight = 0.46f;
+        private const float ChickenHeight = 0.72f;
         private const float EggHeight = 0.18f;
 
         /// <summary>Tilled plot thickness. Two of them side by side make up one crop bed.</summary>
@@ -58,7 +58,7 @@ namespace MiniMart
             productColors[ProductKind.Chips] = new Color(1f, 0.82f, 0.16f);
             productColors[ProductKind.Water] = new Color(0.22f, 0.72f, 1f);
             productColors[ProductKind.Cookies] = new Color(0.53f, 0.28f, 0.12f);
-            productColors[ProductKind.Egg] = new Color(1f, 0.66f, 0.38f);
+            productColors[ProductKind.Egg] = Color.white;
             productColors[ProductKind.Tomato] = new Color(0.91f, 0.24f, 0.20f);
             productColors[ProductKind.Watermelon] = new Color(0.36f, 0.66f, 0.28f);
             productColors[ProductKind.Banana] = new Color(0.98f, 0.82f, 0.24f);
@@ -164,14 +164,16 @@ namespace MiniMart
                 nest.position = nestSpot;
             }
 
-            // One peach egg rests in the centre of the nest. After collection, the same egg appears
-            // here again after its short regrow timer; it is not a crate or a separate pickup point.
-            FarmProducer eggs = CreateFarmProducer(nestSpot, ProductKind.Egg, "Nest egg", new Color(1f, 0.66f, 0.38f),
-                0.18f, nest != null ? 0.25f : 0.42f, false, 1, true);
+            // One white egg sits raised in the open front of the nest. After collection, the same
+            // white egg appears here again after its short regrow timer; it is not a separate pickup point.
+            Vector3 eggSpot = nestSpot + new Vector3(-0.14f, 0f, -0.10f);
+            FarmProducer eggs = CreateFarmProducer(eggSpot, ProductKind.Egg, "Nest egg", Color.white,
+                0.22f, nest != null ? 0.34f : 0.42f, false, 1, true);
             eggs.ReadySound = SfxKind.Cluck;
 
-            // The supplied chicken stays close to the nest with gentle pecking, turning, and bobbing.
-            BuildChicken(nestSpot + new Vector3(0.18f, 0f, 0.68f), eggs, "Nest_Chicken");
+            // The chicken is perched on the rear rim of the nest and deliberately remains still so
+            // the white egg stays readable in front of her.
+            BuildChicken(nestSpot + new Vector3(0.12f, 0.24f, 0.20f), "Nest_Chicken");
         }
 
         /// <summary>
@@ -267,15 +269,15 @@ namespace MiniMart
             Random.state = callerState;
         }
 
-        private void BuildChicken(Vector3 position, FarmProducer nest, string name)
+        private void BuildChicken(Vector3 position, string name)
         {
             GameObject root = new GameObject(name);
             root.transform.position = position;
 
-            // The uploaded low-poly chicken is Z up. It receives a cream body material matching
-            // the reference; its idle motion below supplies the small living movement around the nest.
+            // The uploaded low-poly chicken is Z up. A saturated cream-gold material makes it
+            // visible from the isometric camera, with a red comb accent matching the reference.
             Transform body = ModelKit.SpawnProp(root.transform, "Props/FarmChicken",
-                MaterialFor("NestChickenCream", new Color(0.97f, 0.90f, 0.72f)), ChickenHeight, 0, ModelKit.ZUpFix);
+                MaterialFor("NestChickenCream", new Color(1f, 0.72f, 0.22f)), ChickenHeight, 0, ModelKit.ZUpFix);
             if (body == null)
             {
                 // No imported hen: fall back to the primitive bird so the coop is not empty.
@@ -285,10 +287,18 @@ namespace MiniMart
             }
 
             body.name = "Nest_Chicken_Body";
-            // A small patch keeps her beside the nest, with gentle pecking and a light bob rather
-            // than full roaming across the crop area.
-            Rect patch = new Rect(position.x - 0.22f, position.z - 0.20f, 0.44f, 0.40f);
-            root.AddComponent<RoamingAnimal>().Initialise(body, patch, 0.11f, ChickenHeight * 0.035f, true, nest);
+            AddChickenComb(root.transform);
+            // No RoamingAnimal is attached: this chicken stays standing on the nest rim.
+        }
+
+        private void AddChickenComb(Transform chicken)
+        {
+            // A simple, readable red comb supplies the key colour accent without modifying the
+            // uploaded mesh. It is parented to the stationary chicken, so it cannot drift away.
+            GameObject comb = CreateDecor(PrimitiveType.Cube, "Nest_Chicken_Red_Comb",
+                chicken.position + new Vector3(0f, ChickenHeight * 0.96f, 0.02f),
+                new Vector3(0.18f, 0.18f, 0.10f), MaterialFor("NestChickenComb", new Color(0.88f, 0.10f, 0.08f)), chicken);
+            comb.transform.localRotation = Quaternion.Euler(0f, 0f, 8f);
         }
 
         private void BuildToyChicken(Vector3 position, string label)
