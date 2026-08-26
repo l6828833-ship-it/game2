@@ -6,7 +6,7 @@ using UnityEngine.UI;
 
 namespace MiniMart
 {
-    public enum ProductKind { Milk, Bread, Apple, Juice, Cereal, Chips, Water, Cookies }
+    public enum ProductKind { Milk, Bread, Apple, Juice, Cereal, Chips, Water, Cookies, Egg }
 
     [Serializable]
     public class StoreSave
@@ -33,7 +33,7 @@ namespace MiniMart
         public int Money { get; private set; }
         public PlayerShopper Player { get; private set; }
         public readonly List<ShelfUnit> Shelves = new List<ShelfUnit>();
-        public readonly List<StorageBox> Storages = new List<StorageBox>();
+        public readonly List<FarmProducer> FarmProducers = new List<FarmProducer>();
         public readonly List<CustomerAgent> Customers = new List<CustomerAgent>();
         public CheckoutStation Checkout { get; private set; }
         public MiniMartUI UI { get; private set; }
@@ -46,11 +46,6 @@ namespace MiniMart
         private float spawnTimer;
         private int customerSerial;
         private bool gamePaused;
-
-        private readonly ProductKind[] starterProducts =
-        {
-            ProductKind.Milk, ProductKind.Bread, ProductKind.Apple, ProductKind.Juice, ProductKind.Cereal
-        };
 
         private void Awake()
         {
@@ -79,7 +74,8 @@ namespace MiniMart
             if (spawnTimer <= 0f && Customers.Count < maximumCustomers)
             {
                 SpawnCustomer();
-                spawnTimer = Mathf.Lerp(8f, 3.5f, Mathf.Clamp01((Customers.Count + save.customerUpgrade) / 10f));
+                float busyness = Mathf.Clamp01((Customers.Count + save.customerUpgrade) / 10f);
+                spawnTimer = UnityEngine.Random.Range(Mathf.Lerp(5.5f, 2.6f, busyness), Mathf.Lerp(9f, 4.2f, busyness));
             }
             UI.Refresh();
         }
@@ -94,6 +90,7 @@ namespace MiniMart
             productColors[ProductKind.Chips] = new Color(1f, 0.82f, 0.16f);
             productColors[ProductKind.Water] = new Color(0.22f, 0.72f, 1f);
             productColors[ProductKind.Cookies] = new Color(0.53f, 0.28f, 0.12f);
+            productColors[ProductKind.Egg] = new Color(1f, 0.96f, 0.74f);
         }
 
         private void BuildWorld()
@@ -110,7 +107,6 @@ namespace MiniMart
             BuildStoreShell();
             BuildProps();
             BuildShelves();
-            BuildStorage();
             BuildCheckout();
             BuildUpgrades();
             BuildPlayer();
@@ -121,8 +117,8 @@ namespace MiniMart
             CustomerSpawn.position = new Vector3(-10.5f, 0f, -2.1f);
             CustomerExit = new GameObject("Customer_Exit").transform;
             CustomerExit.position = new Vector3(-13.5f, 0f, -2.1f);
-            for (int i = 0; i < 3; i++) SpawnCustomer();
-            spawnTimer = 3.5f;
+            for (int i = 0; i < 2; i++) SpawnCustomer();
+            spawnTimer = UnityEngine.Random.Range(4.5f, 7f);
         }
 
         private void BuildFarm()
@@ -151,11 +147,7 @@ namespace MiniMart
                 CreatePrimitive(PrimitiveType.Cylinder, label + "_Stem", p, new Vector3(0.09f, 0.36f, 0.09f), MaterialFor("CropLeaf", new Color(0.19f, 0.58f, 0.18f)));
                 CreatePrimitive(PrimitiveType.Sphere, label + "_Produce", p + new Vector3(0.16f, 0.28f, 0f), new Vector3(0.24f, 0.24f, 0.24f), MaterialFor(label + "_Fruit", fruitColor));
             }
-            GameObject farmStorage = new GameObject("FarmCrate_" + product);
-            farmStorage.transform.position = position + new Vector3(0f, 0f, -1.35f);
-            StorageBox box = farmStorage.AddComponent<StorageBox>();
-            box.Initialise(product);
-            Storages.Add(box);
+            CreateFarmProducer(position + new Vector3(0f, 0f, -1.35f), product, label + " Harvest", fruitColor);
         }
 
         private void BuildChickenCoop(Vector3 position)
@@ -165,6 +157,7 @@ namespace MiniMart
             BuildToyChicken(position + new Vector3(-1.4f, 0f, -1.15f), "Chicken_A");
             BuildToyChicken(position + new Vector3(-0.5f, 0f, -1.35f), "Chicken_B");
             BuildToyChicken(position + new Vector3(0.45f, 0f, -1.15f), "Chicken_C");
+            CreateFarmProducer(position + new Vector3(1.55f, 0f, -1.15f), ProductKind.Egg, "Egg Nest", new Color(1f, 0.96f, 0.74f));
         }
 
         private void BuildToyChicken(Vector3 position, string label)
@@ -220,7 +213,7 @@ namespace MiniMart
                 new Vector3(-5.5f, 0f, 4.6f), new Vector3(-2.5f, 0f, 4.6f), new Vector3(0.5f, 0f, 4.6f), new Vector3(3.5f, 0f, 4.6f),
                 new Vector3(-5.5f, 0f, 1.7f), new Vector3(-2.5f, 0f, 1.7f), new Vector3(0.5f, 0f, 1.7f), new Vector3(3.5f, 0f, 1.7f)
             };
-            ProductKind[] products = { ProductKind.Milk, ProductKind.Bread, ProductKind.Apple, ProductKind.Juice, ProductKind.Cereal, ProductKind.Chips, ProductKind.Water, ProductKind.Cookies };
+            ProductKind[] products = { ProductKind.Apple, ProductKind.Juice, ProductKind.Cereal, ProductKind.Egg, ProductKind.Milk, ProductKind.Bread, ProductKind.Chips, ProductKind.Water };
             for (int i = 0; i < positions.Length; i++) CreateShelf(positions[i], products[i], true);
             for (int i = 0; i < save.extraShelves; i++)
                 CreateShelf(new Vector3(6.4f + (i % 2) * 2.8f, 0f, 1.7f - (i / 2) * 2.9f), ProductKind.Chips, true);
@@ -235,17 +228,13 @@ namespace MiniMart
             Shelves.Add(shelf);
         }
 
-        private void BuildStorage()
+        private void CreateFarmProducer(Vector3 position, ProductKind product, string label, Color color)
         {
-            ProductKind[] types = { ProductKind.Milk, ProductKind.Bread, ProductKind.Apple, ProductKind.Juice, ProductKind.Cereal, ProductKind.Chips, ProductKind.Water, ProductKind.Cookies };
-            for (int i = 0; i < types.Length; i++)
-            {
-                GameObject root = new GameObject("Storage_" + types[i]);
-                root.transform.position = new Vector3(-7.8f + (i % 4) * 1.15f, 0f, 6.5f - (i / 4) * 1.05f);
-                StorageBox storage = root.AddComponent<StorageBox>();
-                storage.Initialise(types[i]);
-                Storages.Add(storage);
-            }
+            GameObject root = new GameObject("FarmHarvest_" + product);
+            root.transform.position = position;
+            FarmProducer producer = root.AddComponent<FarmProducer>();
+            producer.Initialise(product, label, color);
+            FarmProducers.Add(producer);
         }
 
         private void BuildCheckout()
@@ -391,16 +380,10 @@ namespace MiniMart
             return best;
         }
 
-        public StorageBox FindStorage(ProductKind kind)
-        {
-            foreach (StorageBox box in Storages) if (box.Product == kind) return box;
-            return null;
-        }
-
         public void SpawnCustomer()
         {
             GameObject customer = new GameObject("Customer_" + (++customerSerial));
-            customer.transform.position = CustomerSpawn.position + new Vector3(0f, 0f, UnityEngine.Random.Range(-0.4f, 0.4f));
+            customer.transform.position = CustomerSpawn.position + new Vector3(UnityEngine.Random.Range(-0.45f, 0.25f), 0f, UnityEngine.Random.Range(-0.8f, 0.8f));
             CustomerAgent agent = customer.AddComponent<CustomerAgent>();
             agent.Initialise(customerSerial);
             Customers.Add(agent);
@@ -439,7 +422,8 @@ namespace MiniMart
         private CharacterController controller;
         private Transform visual;
         private ProductKind? carrying;
-        private float wobble;
+        private Vector3 moveVelocity;
+        private float walkPhase;
         public ProductKind? Carrying => carrying;
 
         public void Initialise()
@@ -448,9 +432,23 @@ namespace MiniMart
             controller.radius = 0.34f;
             controller.height = 1.25f;
             controller.center = new Vector3(0f, 0.63f, 0f);
-            visual = new GameObject("Cute_Player_Visual").transform;
-            visual.SetParent(transform);
-            BuildToyCharacter(visual, new Color(0.17f, 0.63f, 0.96f), new Color(0.17f, 0.63f, 0.96f), "Player");
+            visual = new GameObject("Yellow_Farm_Player").transform;
+            visual.SetParent(transform, false);
+            GameObject playerAsset = Resources.Load<GameObject>("Characters/FarmPlayer");
+            if (playerAsset != null)
+            {
+                GameObject importedPlayer = Instantiate(playerAsset, visual);
+                importedPlayer.name = "Farm_Player_Asset";
+                importedPlayer.transform.localPosition = new Vector3(0f, 0f, 0f);
+                importedPlayer.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
+                importedPlayer.transform.localScale = Vector3.one * 0.78f;
+                Material yellow = MiniMartGameManager.Instance.MaterialFor("PlayerYellow", new Color(1f, 0.82f, 0.10f));
+                foreach (Renderer renderer in importedPlayer.GetComponentsInChildren<Renderer>(true)) renderer.sharedMaterial = yellow;
+            }
+            else
+            {
+                BuildToyCharacter(visual, new Color(1f, 0.82f, 0.10f), new Color(1f, 0.82f, 0.10f), "Player");
+            }
         }
 
         private void Update()
@@ -464,26 +462,36 @@ namespace MiniMart
                 if (Keyboard.current.wKey.isPressed) input.y += 1f;
                 if (Keyboard.current.eKey.wasPressedThisFrame) Interact();
             }
-            Vector3 movement = new Vector3(input.x, 0f, input.y).normalized;
-            controller.Move(movement * 4.2f * Time.deltaTime + Vector3.down * 2f * Time.deltaTime);
-            if (movement.sqrMagnitude > 0.01f)
+            Vector3 inputDirection = new Vector3(input.x, 0f, input.y).normalized;
+            Vector3 desiredVelocity = inputDirection * 4.6f;
+            moveVelocity = Vector3.Lerp(moveVelocity, desiredVelocity, 1f - Mathf.Exp(-12f * Time.deltaTime));
+            controller.Move(moveVelocity * Time.deltaTime + Vector3.down * 2f * Time.deltaTime);
+            if (inputDirection.sqrMagnitude > 0.01f)
             {
-                transform.forward = Vector3.Slerp(transform.forward, movement, 14f * Time.deltaTime);
-                wobble += Time.deltaTime * 11f;
-                visual.localPosition = new Vector3(0f, 0.05f + Mathf.Abs(Mathf.Sin(wobble)) * 0.08f, 0f);
+                transform.forward = Vector3.Slerp(transform.forward, inputDirection, 12f * Time.deltaTime);
+                walkPhase += Time.deltaTime * 8.5f;
+                visual.localPosition = Vector3.Lerp(visual.localPosition, new Vector3(0f, 0.02f, 0f), Time.deltaTime * 9f);
+                visual.localRotation = Quaternion.Slerp(visual.localRotation, Quaternion.Euler(0f, 0f, Mathf.Sin(walkPhase) * 2.2f), Time.deltaTime * 10f);
             }
-            else visual.localPosition = Vector3.Lerp(visual.localPosition, Vector3.zero, Time.deltaTime * 7f);
+            else
+            {
+                visual.localPosition = Vector3.Lerp(visual.localPosition, Vector3.zero, Time.deltaTime * 9f);
+                visual.localRotation = Quaternion.Slerp(visual.localRotation, Quaternion.identity, Time.deltaTime * 9f);
+            }
             UpdateCarryVisual();
         }
 
         private void Interact()
         {
             MiniMartGameManager game = MiniMartGameManager.Instance;
-            StorageBox closestStorage = FindClosest(game.Storages, 2.1f);
-            if (carrying == null && closestStorage != null)
+            FarmProducer closestHarvest = FindClosest(game.FarmProducers, 2.1f);
+            if (carrying == null && closestHarvest != null)
             {
-                carrying = closestStorage.Product;
-                game.UI.SetNotification("Picked up " + carrying + " box. Find the matching shelf!", 2f);
+                if (closestHarvest.TryHarvest())
+                {
+                    carrying = closestHarvest.Product;
+                    game.UI.SetNotification("Harvested " + carrying + ". Take it to the matching shelf!", 2f);
+                }
                 return;
             }
 
@@ -503,7 +511,7 @@ namespace MiniMart
                 game.UI.SetNotification("Checkout is handling the queue automatically.", 1.5f);
                 return;
             }
-            game.UI.SetNotification(carrying == null ? "Press E near a farm crate, storage box, or upgrade station." : "Walk to the matching shelf and press E to stock it.", 1.6f);
+            game.UI.SetNotification(carrying == null ? "Press E at a crop plot, egg nest, or upgrade station." : "Walk to the matching shelf and press E to stock it.", 1.6f);
         }
 
         private void UpdateCarryVisual()
@@ -622,17 +630,47 @@ namespace MiniMart
         }
     }
 
-    public class StorageBox : MonoBehaviour
+    public class FarmProducer : MonoBehaviour
     {
         public ProductKind Product { get; private set; }
-        public void Initialise(ProductKind kind)
+        private string label;
+        private GameObject harvestVisual;
+        private float regrowTimer;
+        private bool ready = true;
+
+        public void Initialise(ProductKind kind, string producerLabel, Color color)
         {
             Product = kind;
+            label = producerLabel;
             MiniMartGameManager game = MiniMartGameManager.Instance;
-            GameObject box = game.CreatePrimitive(PrimitiveType.Cube, "Stock_Box_" + kind, transform.position + new Vector3(0f, 0.35f, 0f), new Vector3(0.85f, 0.68f, 0.72f), game.MaterialFor("Box", new Color(0.65f, 0.38f, 0.20f)), transform);
-            box.transform.localPosition = new Vector3(0f, 0.35f, 0f);
-            GameObject stripe = game.CreatePrimitive(PrimitiveType.Cube, "Box_Stripe", transform.position, new Vector3(0.88f, 0.18f, 0.74f), game.MaterialFor("Stock_" + kind, game.ProductColor(kind)), transform);
-            stripe.transform.localPosition = new Vector3(0f, 0.47f, -0.38f);
+            GameObject baseRing = game.CreatePrimitive(PrimitiveType.Cylinder, producerLabel + "_Marker", transform.position + new Vector3(0f, 0.08f, 0f), new Vector3(0.68f, 0.08f, 0.68f), game.MaterialFor("FarmMarker_" + kind, new Color(0.92f, 0.75f, 0.32f)), transform);
+            baseRing.transform.localPosition = new Vector3(0f, 0.08f, 0f);
+            PrimitiveType shape = kind == ProductKind.Egg || kind == ProductKind.Apple ? PrimitiveType.Sphere : PrimitiveType.Cube;
+            harvestVisual = game.CreatePrimitive(shape, producerLabel + "_Ready", transform.position, kind == ProductKind.Egg ? new Vector3(0.38f, 0.50f, 0.38f) : new Vector3(0.46f, 0.46f, 0.46f), game.MaterialFor("FarmOutput_" + kind, color), transform);
+            harvestVisual.transform.localPosition = new Vector3(0f, 0.50f, 0f);
+        }
+
+        public bool TryHarvest()
+        {
+            if (!ready)
+            {
+                MiniMartGameManager.Instance.UI.SetNotification(label + " is growing. Come back soon!", 1.4f);
+                return false;
+            }
+            ready = false;
+            regrowTimer = Product == ProductKind.Egg ? 7f : 5f;
+            harvestVisual.SetActive(false);
+            return true;
+        }
+
+        private void Update()
+        {
+            if (ready) return;
+            regrowTimer -= Time.deltaTime;
+            if (regrowTimer > 0f) return;
+            ready = true;
+            harvestVisual.SetActive(true);
+            MiniMartGameManager.Instance.UI.SetNotification(label + " is ready!", 1.2f);
         }
     }
 
@@ -713,35 +751,54 @@ namespace MiniMart
         private ShelfUnit targetShelf;
         private Transform visual;
         private bool hasItem;
+        private float walkSpeed;
+        private float walkPhase;
+        private Vector3 movementVelocity;
         public int BasketValue { get; private set; }
 
         public void Initialise(int serial)
         {
-            Color[] shirts = { new Color(0.96f, 0.43f, 0.57f), new Color(0.45f, 0.73f, 0.91f), new Color(0.62f, 0.76f, 0.37f), new Color(0.82f, 0.55f, 0.92f) };
-            Color[] skins = { new Color(1f, 0.76f, 0.58f), new Color(0.63f, 0.40f, 0.28f), new Color(0.44f, 0.25f, 0.16f), new Color(0.88f, 0.61f, 0.43f) };
+            Color[] shirts = { new Color(0.96f, 0.43f, 0.57f), new Color(0.45f, 0.73f, 0.91f), new Color(0.62f, 0.76f, 0.37f), new Color(0.82f, 0.55f, 0.92f), new Color(1f, 0.72f, 0.18f), new Color(0.29f, 0.78f, 0.70f) };
+            Color[] skins = { new Color(1f, 0.76f, 0.58f), new Color(0.63f, 0.40f, 0.28f), new Color(0.44f, 0.25f, 0.16f), new Color(0.88f, 0.61f, 0.43f), new Color(0.80f, 0.52f, 0.35f) };
             visual = new GameObject("CustomerToy").transform;
-            visual.SetParent(transform);
-            PlayerShopper.BuildToyCharacter(visual, shirts[serial % shirts.Length], skins[(serial + 1) % skins.Length], "Customer" + serial);
-            target = new Vector3(-7.6f, 0f, -3.1f);
+            visual.SetParent(transform, false);
+            PlayerShopper.BuildToyCharacter(visual, shirts[serial % shirts.Length], skins[(serial * 3 + 1) % skins.Length], "Customer" + serial);
+            walkSpeed = UnityEngine.Random.Range(1.45f, 2.05f);
+            walkPhase = UnityEngine.Random.Range(0f, 6.28f);
+            target = new Vector3(-7.6f, 0f, -3.1f + UnityEngine.Random.Range(-0.6f, 0.6f));
+            stateTimer = UnityEngine.Random.Range(0.45f, 1.35f);
             state = CustomerState.Entering;
         }
 
         private void Update()
         {
-            float speed = 1.7f;
             Vector3 delta = target - transform.position;
             delta.y = 0f;
             if (delta.sqrMagnitude > 0.04f)
             {
-                transform.position += delta.normalized * speed * Time.deltaTime;
-                transform.forward = Vector3.Slerp(transform.forward, delta.normalized, 8f * Time.deltaTime);
-                visual.localPosition = new Vector3(0f, Mathf.Abs(Mathf.Sin(Time.time * 7f)) * 0.05f, 0f);
+                Vector3 desiredVelocity = delta.normalized * walkSpeed;
+                movementVelocity = Vector3.Lerp(movementVelocity, desiredVelocity, 1f - Mathf.Exp(-7f * Time.deltaTime));
+                transform.position += movementVelocity * Time.deltaTime;
+                transform.forward = Vector3.Slerp(transform.forward, movementVelocity.normalized, 9f * Time.deltaTime);
+                walkPhase += Time.deltaTime * 7f;
+                visual.localPosition = Vector3.Lerp(visual.localPosition, new Vector3(0f, 0.018f, 0f), Time.deltaTime * 10f);
+                visual.localRotation = Quaternion.Slerp(visual.localRotation, Quaternion.Euler(0f, 0f, Mathf.Sin(walkPhase) * 2f), Time.deltaTime * 9f);
                 return;
             }
-            visual.localPosition = Vector3.zero;
+            movementVelocity = Vector3.Lerp(movementVelocity, Vector3.zero, Time.deltaTime * 8f);
+            visual.localPosition = Vector3.Lerp(visual.localPosition, Vector3.zero, Time.deltaTime * 8f);
+            visual.localRotation = Quaternion.Slerp(visual.localRotation, Quaternion.identity, Time.deltaTime * 8f);
             stateTimer -= Time.deltaTime;
             if (state == CustomerState.Entering)
             {
+                if (stateTimer > 0f) return;
+                state = CustomerState.Browsing;
+                stateTimer = UnityEngine.Random.Range(0.35f, 1.15f);
+                return;
+            }
+            if (state == CustomerState.Browsing)
+            {
+                if (stateTimer > 0f) return;
                 MiniMartGameManager game = MiniMartGameManager.Instance;
                 for (int attempt = 0; attempt < game.Shelves.Count; attempt++)
                 {
@@ -749,10 +806,11 @@ namespace MiniMart
                     if (candidate.Stock > 0) { targetShelf = candidate; break; }
                 }
                 if (targetShelf == null) { BeginLeaving(); return; }
-                target = targetShelf.transform.position + new Vector3(0f, 0f, -1.0f);
+                target = targetShelf.transform.position + new Vector3(UnityEngine.Random.Range(-0.38f, 0.38f), 0f, -1.05f);
                 state = CustomerState.GoingToShelf;
+                return;
             }
-            else if (state == CustomerState.GoingToShelf)
+            if (state == CustomerState.GoingToShelf)
             {
                 if (targetShelf != null && targetShelf.TakeOne())
                 {
@@ -761,8 +819,9 @@ namespace MiniMart
                 }
                 MiniMartGameManager.Instance.Checkout.JoinQueue(this);
                 state = CustomerState.Queuing;
+                return;
             }
-            else if (state == CustomerState.Leaving && stateTimer <= 0f) MiniMartGameManager.Instance.RemoveCustomer(this);
+            if (state == CustomerState.Leaving && stateTimer <= 0f) MiniMartGameManager.Instance.RemoveCustomer(this);
         }
 
         public void SetQueueTarget(Vector3 queueTarget)
