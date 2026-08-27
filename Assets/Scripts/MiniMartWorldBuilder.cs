@@ -386,9 +386,11 @@ namespace MiniMart
         {
             GameObject root = new GameObject("Egg_Table");
             root.transform.position = position;
-            // The converted user table is already Y-up with its raised board at the rear (+Z),
-            // which faces away from the top-down camera at negative Z.
-            root.transform.rotation = Quaternion.identity;
+            // Scale the table, its eggs, and all fixed sockets together so it reads beside the player.
+            root.transform.localScale = Vector3.one * 1.38f;
+            // The camera views the store diagonally from negative X/Z. Turning the table 45 degrees
+            // keeps its raised board at the rear and presents the open holders toward the player.
+            root.transform.rotation = Quaternion.Euler(0f, 45f, 0f);
             ShelfUnit table = root.AddComponent<ShelfUnit>();
             table.InitialiseEggTable(4, MiniMartGameManager.Instance.EggTableUpgraded);
             Shelves.Add(table);
