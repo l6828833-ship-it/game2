@@ -21,12 +21,12 @@ namespace MiniMart
         private float regrowDuration = 1f;
 
         /// <summary>
-        /// <paramref name="modelPath"/> is an optional imported mesh for the produce; without one it
-        /// falls back to a coloured primitive. <paramref name="restHeight"/> is where the produce sits,
-        /// which lets the egg settle into the nest instead of floating above a marker.
+        /// The produce mesh comes from the product table, falling back to a coloured primitive for
+        /// products without one. <paramref name="restHeight"/> is where it sits, which is what puts
+        /// the egg on the nest rim rather than floating above a marker.
         /// </summary>
         public void Initialise(ProductKind kind, string label, Color color,
-            string modelPath = null, float modelHeight = 0f, float restHeight = 0.5f, bool showMarker = true)
+            float modelHeight = 0f, float restHeight = 0.5f, bool showMarker = true)
         {
             Product = kind;
             Label = label;
@@ -42,15 +42,16 @@ namespace MiniMart
             }
 
             Transform produce = null;
-            if (!string.IsNullOrEmpty(modelPath) && modelHeight > 0f)
+            if (ProductVisuals.TryGet(kind, out ProductVisuals.Visual visual))
             {
-                produce = ModelKit.SpawnProp(transform, modelPath, output, modelHeight, 3, ModelKit.ZUpFix);
+                float height = modelHeight > 0f ? modelHeight : visual.CropHeight;
+                produce = ModelKit.SpawnProp(transform, visual.Model, output, height, visual.DetailLod, visual.UpFix);
                 if (produce != null)
                 {
                     // SpawnProp already sized and grounded the mesh inside the pivot, so the pivot
                     // itself is what gets moved and scaled from here on.
                     baseScale = produce.localScale;
-                    hover = Mathf.Min(0.04f, modelHeight * 0.2f);
+                    hover = Mathf.Min(0.04f, height * 0.2f);
                 }
             }
 

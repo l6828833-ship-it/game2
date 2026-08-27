@@ -39,6 +39,7 @@ namespace MiniMart
         private Transform moodLight;
         private Renderer moodRenderer;
         private Transform basketVisual;
+        private ProductKind? basketProduct;
         private ShelfUnit targetShelf;
         private CharacterLocomotion locomotion;
         private float bodyHeight = 1.6f;
@@ -305,18 +306,32 @@ namespace MiniMart
 
         private void ShowBasket(MiniMartGameManager game, ProductKind product)
         {
+            Material material = game.MaterialFor("Product_" + product, game.ProductColor(product));
+
+            // Rebuild when the product changes so shoppers carry out what they actually picked up.
+            if (basketVisual != null && basketProduct != product)
+            {
+                Destroy(basketVisual.gameObject);
+                basketVisual = null;
+            }
+            basketProduct = product;
+
+            if (basketVisual == null && ProductVisuals.TryGet(product, out ProductVisuals.Visual pv))
+                basketVisual = ModelKit.SpawnProp(visual, pv.Model, material, pv.HandHeight, pv.ShelfLod, pv.UpFix);
+
             if (basketVisual == null)
             {
                 basketVisual = game.CreateDecor(PrimitiveType.Cube, "Customer_Basket", transform.position,
-                    new Vector3(0.3f, 0.24f, 0.24f), game.MaterialFor("Product_" + product, game.ProductColor(product)), visual).transform;
+                    new Vector3(0.3f, 0.24f, 0.24f), material, visual).transform;
             }
             // The holding clips carry the item in front, the toy body tucks it under one arm.
             basketVisual.localPosition = locomotion != null
                 ? new Vector3(0f, bodyHeight * 0.58f, 0.26f)
                 : new Vector3(0.34f, 0.55f, 0.16f);
+            basketVisual.name = "Customer_Basket";
             basketVisual.gameObject.SetActive(true);
-            Renderer renderer = basketVisual.GetComponent<Renderer>();
-            if (renderer != null) renderer.sharedMaterial = game.MaterialFor("Product_" + product, game.ProductColor(product));
+            // Covers the primitive as well as the model, whose renderer sits on a child.
+            ModelKit.Paint(basketVisual.gameObject, material);
         }
 
         /// <summary>Called by the till once the basket is paid for.</summary>

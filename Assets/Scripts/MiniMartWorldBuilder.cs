@@ -11,14 +11,17 @@ namespace MiniMart
     {
         private static readonly ProductKind[] ExtraShelfProducts =
         {
-            ProductKind.Cookies, ProductKind.Chips, ProductKind.Milk, ProductKind.Bread,
-            ProductKind.Water, ProductKind.Juice, ProductKind.Cereal, ProductKind.Apple
+            ProductKind.Watermelon, ProductKind.Tomato, ProductKind.Banana, ProductKind.Egg,
+            ProductKind.Tomato, ProductKind.Watermelon, ProductKind.Egg, ProductKind.Banana
         };
 
         /// <summary>Prop sizes in metres. The nest is wide and shallow, so its height stays low.</summary>
-        private const float NestHeight = 0.22f;
-        private const float ChickenHeight = 0.42f;
-        private const float EggHeight = 0.16f;
+        private const float NestHeight = 0.34f;
+        private const float ChickenHeight = 0.46f;
+        private const float EggHeight = 0.18f;
+
+        /// <summary>Tilled plot thickness. Two of them side by side make up one crop bed.</summary>
+        private const float PlotHeight = 0.2f;
 
         /// <summary>
         /// Paddock bounds. The north rail sits at z = -7.2, clear of the store floor which starts at
@@ -58,6 +61,9 @@ namespace MiniMart
             productColors[ProductKind.Water] = new Color(0.22f, 0.72f, 1f);
             productColors[ProductKind.Cookies] = new Color(0.53f, 0.28f, 0.12f);
             productColors[ProductKind.Egg] = new Color(1f, 0.96f, 0.74f);
+            productColors[ProductKind.Tomato] = new Color(0.91f, 0.24f, 0.20f);
+            productColors[ProductKind.Watermelon] = new Color(0.36f, 0.66f, 0.28f);
+            productColors[ProductKind.Banana] = new Color(0.98f, 0.82f, 0.24f);
         }
 
         private void BuildWorld()
@@ -95,9 +101,10 @@ namespace MiniMart
             Material fence = MaterialFor("FarmFence", new Color(0.68f, 0.42f, 0.18f));
             CreatePrimitive(PrimitiveType.Cube, "Farm_Path", new Vector3(-12f, 0.06f, -2.2f), new Vector3(8.5f, 0.08f, 2.2f), MaterialFor("FarmPath", new Color(0.91f, 0.72f, 0.40f)));
             CreatePrimitive(PrimitiveType.Cube, "Farm_Zone", new Vector3(-16f, 0.05f, 2.1f), new Vector3(8.5f, 0.1f, 9f), MaterialFor("FarmGrass", new Color(0.58f, 0.88f, 0.34f)));
-            BuildCropBed(new Vector3(-18f, 0f, 3.6f), "Tomato_Plot", soil, ProductKind.Apple, new Color(0.93f, 0.22f, 0.25f));
-            BuildCropBed(new Vector3(-14.2f, 0f, 3.6f), "Carrot_Plot", soil, ProductKind.Juice, new Color(1f, 0.48f, 0.12f));
-            BuildCropBed(new Vector3(-18f, 0f, 0.25f), "Corn_Plot", soil, ProductKind.Cereal, new Color(1f, 0.78f, 0.15f));
+            // Each bed grows what the shop actually sells, so every shelf has a source.
+            BuildCropBed(new Vector3(-18f, 0f, 3.6f), "Tomato_Bed", soil, ProductKind.Tomato, new Color(0.91f, 0.24f, 0.20f));
+            BuildCropBed(new Vector3(-14.2f, 0f, 3.6f), "Melon_Bed", soil, ProductKind.Watermelon, new Color(0.36f, 0.66f, 0.28f));
+            BuildCropBed(new Vector3(-18f, 0f, 0.25f), "Banana_Bed", soil, ProductKind.Banana, new Color(0.98f, 0.82f, 0.24f));
             BuildChickenCoop(new Vector3(-14.2f, 0f, 0.25f));
             BuildFenceLine(new Vector3(-20.3f, 0f, 2.1f), new Vector3(0f, 0f, 8.8f), fence, 6);
             BuildFenceLine(new Vector3(-16f, 0f, 6.5f), new Vector3(8.6f, 0f, 0f), fence, 6);
@@ -107,14 +114,53 @@ namespace MiniMart
 
         private void BuildCropBed(Vector3 position, string label, Material soil, ProductKind product, Color fruitColor)
         {
-            CreatePrimitive(PrimitiveType.Cube, label + "_Soil", position + new Vector3(0f, 0.12f, 0f), new Vector3(3f, 0.24f, 1.65f), soil);
+            // Two tilled plots side by side make up the bed, falling back to a soil slab if the
+            // model is missing.
+            Material soilTint = MaterialFor("PlotSoil", new Color(0.55f, 0.36f, 0.20f));
+            Transform plotLeft = ModelKit.SpawnProp(null, ModelKit.FarmPlotModel, soilTint, PlotHeight, 3, Vector3.zero);
+            Transform plotRight = ModelKit.SpawnProp(null, ModelKit.FarmPlotModel, soilTint, PlotHeight, 3, Vector3.zero);
+            if (plotLeft != null && plotRight != null)
+            {
+                plotLeft.name = label + "_Plot_L";
+                plotRight.name = label + "_Plot_R";
+                plotLeft.position = position + new Vector3(-0.75f, 0f, 0f);
+                plotRight.position = position + new Vector3(0.75f, 0f, 0f);
+                plotRight.rotation = Quaternion.Euler(0f, 180f, 0f);
+            }
+            else
+            {
+                CreatePrimitive(PrimitiveType.Cube, label + "_Soil", position + new Vector3(0f, 0.12f, 0f),
+                    new Vector3(3f, 0.24f, 1.65f), soil);
+            }
+
+            bool hasFruitModel = ProductVisuals.TryGet(product, out ProductVisuals.Visual fruit);
+            Material leaf = MaterialFor("CropLeaf", new Color(0.19f, 0.58f, 0.18f));
+            Material fruitMaterial = MaterialFor(label + "_Fruit", fruitColor);
+
             for (int row = 0; row < 2; row++)
             for (int col = 0; col < 4; col++)
             {
-                Vector3 p = position + new Vector3(-1.05f + col * 0.7f, 0.33f, -0.38f + row * 0.76f);
-                CreatePrimitive(PrimitiveType.Cylinder, label + "_Stem", p, new Vector3(0.09f, 0.36f, 0.09f), MaterialFor("CropLeaf", new Color(0.19f, 0.58f, 0.18f)));
-                CreatePrimitive(PrimitiveType.Sphere, label + "_Produce", p + new Vector3(0.16f, 0.28f, 0f), new Vector3(0.24f, 0.24f, 0.24f), MaterialFor(label + "_Fruit", fruitColor));
+                Vector3 p = position + new Vector3(-1.05f + col * 0.7f, PlotHeight + 0.24f, -0.38f + row * 0.76f);
+                CreateDecor(PrimitiveType.Cylinder, label + "_Stem", p, new Vector3(0.09f, 0.30f, 0.09f), leaf);
+
+                // Fruit on every other plant: these meshes are heavy and a full bed of them is a
+                // lot of geometry for scenery.
+                if ((row * 4 + col) % 2 != 0) continue;
+                Vector3 fruitSpot = p + new Vector3(0.15f, 0.24f, 0f);
+                if (hasFruitModel)
+                {
+                    Transform grown = ModelKit.SpawnProp(null, fruit.Model, fruitMaterial, fruit.CropHeight, fruit.DetailLod, fruit.UpFix);
+                    if (grown != null)
+                    {
+                        grown.name = label + "_Produce";
+                        grown.position = fruitSpot;
+                        grown.rotation = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
+                        continue;
+                    }
+                }
+                CreateDecor(PrimitiveType.Sphere, label + "_Produce", fruitSpot, new Vector3(0.24f, 0.24f, 0.24f), fruitMaterial);
             }
+
             CreateFarmProducer(position + new Vector3(0f, 0f, -1.35f), product, GameConfig.ProductLabel(product), fruitColor);
         }
 
@@ -135,7 +181,7 @@ namespace MiniMart
 
             // The egg rests on the rim so it reads from the camera instead of hiding in the bowl.
             FarmProducer eggs = CreateFarmProducer(nestSpot, ProductKind.Egg, "Eggs", new Color(1f, 0.96f, 0.74f),
-                ModelKit.EggModel, EggHeight, nest != null ? NestHeight * 0.8f : 0.5f, nest == null);
+                EggHeight, nest != null ? NestHeight * 0.8f : 0.5f, nest == null);
             eggs.ReadySound = SfxKind.Cluck;
 
             // One hen, keeping to her nest. She sits just behind it, which from this camera angle
@@ -279,8 +325,10 @@ namespace MiniMart
 
         private void BuildShelves()
         {
-            ProductKind[] backRow = { ProductKind.Apple, ProductKind.Juice, ProductKind.Cereal, ProductKind.Egg };
-            ProductKind[] frontRow = { ProductKind.Milk, ProductKind.Bread, ProductKind.Chips, ProductKind.Water };
+            // Only the four farm products, doubled up. A shelf of something the farm cannot grow
+            // would empty out and stay empty, since harvesting is the only way to restock.
+            ProductKind[] backRow = { ProductKind.Tomato, ProductKind.Watermelon, ProductKind.Banana, ProductKind.Egg };
+            ProductKind[] frontRow = { ProductKind.Egg, ProductKind.Tomato, ProductKind.Watermelon, ProductKind.Banana };
             for (int i = 0; i < StoreLayout.ShelfColumns.Length; i++)
             {
                 CreateShelf(new Vector3(StoreLayout.ShelfColumns[i], 0f, StoreLayout.BackRowZ), backRow[i], GameConfig.ShelfCapacity - 3);
@@ -309,12 +357,12 @@ namespace MiniMart
         }
 
         private FarmProducer CreateFarmProducer(Vector3 position, ProductKind product, string label, Color color,
-            string modelPath = null, float modelHeight = 0f, float restHeight = 0.5f, bool showMarker = true)
+            float modelHeight = 0f, float restHeight = 0.5f, bool showMarker = true)
         {
             GameObject root = new GameObject("FarmHarvest_" + product);
             root.transform.position = position;
             FarmProducer producer = root.AddComponent<FarmProducer>();
-            producer.Initialise(product, label, color, modelPath, modelHeight, restHeight, showMarker);
+            producer.Initialise(product, label, color, modelHeight, restHeight, showMarker);
             FarmProducers.Add(producer);
             return producer;
         }

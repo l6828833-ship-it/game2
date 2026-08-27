@@ -3,7 +3,7 @@ using UnityEngine;
 namespace MiniMart
 {
     /// <summary>Everything the store can sell. Farm plots produce a subset of these.</summary>
-    public enum ProductKind { Milk, Bread, Apple, Juice, Cereal, Chips, Water, Cookies, Egg }
+    public enum ProductKind { Milk, Bread, Apple, Juice, Cereal, Chips, Water, Cookies, Egg, Tomato, Watermelon, Banana }
 
     public enum UpgradeType { ExtraShelf, Customers, Premium, Crate }
 
@@ -65,6 +65,9 @@ namespace MiniMart
                 case ProductKind.Egg: return "Eggs";
                 case ProductKind.Cookies: return "Cookies";
                 case ProductKind.Chips: return "Chips";
+                case ProductKind.Tomato: return "Tomatoes";
+                case ProductKind.Banana: return "Bananas";
+                case ProductKind.Watermelon: return "Watermelons";
                 default: return kind.ToString();
             }
         }
@@ -82,6 +85,9 @@ namespace MiniMart
                 case ProductKind.Cookies: return 5;
                 case ProductKind.Juice: return 6;
                 case ProductKind.Egg: return 6;
+                case ProductKind.Tomato: return 4;
+                case ProductKind.Banana: return 5;
+                case ProductKind.Watermelon: return 9;
                 default: return 7;
             }
         }

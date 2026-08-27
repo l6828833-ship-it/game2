@@ -429,29 +429,17 @@ namespace MiniMart
         {
             Material material = game.MaterialFor("Carry_" + kind, game.ProductColor(kind));
 
-            if (kind == ProductKind.Egg)
+            // Whatever is being carried, show the real produce if there is a mesh for it.
+            if (ProductVisuals.TryGet(kind, out ProductVisuals.Visual visual))
             {
-                // Same egg mesh as the one sitting in the nest, sized to fit in a hand.
-                Transform egg = ModelKit.SpawnProp(transform, ModelKit.EggModel, material, 0.17f, 3, ModelKit.ZUpFix);
-                if (egg != null)
+                Transform item = ModelKit.SpawnProp(transform, visual.Model, material,
+                    visual.HandHeight, visual.DetailLod, visual.UpFix);
+                if (item != null)
                 {
-                    egg.name = "Carry_Item";
-                    egg.localPosition = new Vector3(0f, 0.62f, 0.44f);
-                    egg.localRotation = Quaternion.Euler(0f, 25f, 12f);
-                    return egg;
-                }
-
-                GameObject legacyAsset = Resources.Load<GameObject>(ModelKit.LegacyEggModel);
-                if (legacyAsset != null)
-                {
-                    GameObject legacy = Instantiate(legacyAsset, transform);
-                    legacy.name = "Carry_Item";
-                    legacy.transform.localPosition = new Vector3(0f, 0.64f, 0.46f);
-                    legacy.transform.localRotation = Quaternion.Euler(0f, 25f, 0f);
-                    legacy.transform.localScale = Vector3.one * 0.20f;
-                    ModelKit.Paint(legacy, material);
-                    ModelKit.StripColliders(legacy);
-                    return legacy.transform;
+                    item.name = "Carry_Item";
+                    item.localPosition = new Vector3(0f, 0.62f, 0.44f);
+                    item.localRotation = Quaternion.Euler(0f, 25f, 12f);
+                    return item;
                 }
             }
 

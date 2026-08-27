@@ -12,6 +12,7 @@ namespace MiniMart
         public bool IsEmpty => Stock <= 0;
 
         private readonly List<GameObject> visuals = new List<GameObject>();
+        private int unitsPerVisual = 1;
         private Transform statusLight;
         private Renderer statusRenderer;
 
@@ -92,8 +93,12 @@ namespace MiniMart
         }
 
         /// <summary>
-        /// Every slot is created once and then just shown or hidden. The old version destroyed and
-        /// rebuilt fifteen objects on every single sale.
+        /// Every slot is created once and then just shown or hidden, rather than destroying and
+        /// rebuilding the row on each sale.
+        ///
+        /// Products with a real mesh are stocked at half density: those models run to fifteen
+        /// thousand triangles each, and fifteen of them per shelf across eight shelves is a lot of
+        /// geometry for something a few pixels tall. One crate stands for two units instead.
         /// </summary>
         private void BuildProductPool()
         {
@@ -103,17 +108,47 @@ namespace MiniMart
 
             MiniMartGameManager game = MiniMartGameManager.Instance;
             Material material = game.MaterialFor("Product_" + Product, game.ProductColor(Product));
+            bool hasModel = ProductVisuals.TryGet(Product, out ProductVisuals.Visual visual);
+
+            unitsPerVisual = hasModel ? 2 : 1;
+            int columns = hasModel ? 4 : 5;
+            int rows = hasModel ? 2 : 3;
+            float pitch = hasModel ? 0.42f : 0.36f;
+            float left = -pitch * (columns - 1) * 0.5f;
+
             PrimitiveType shape = Product == ProductKind.Apple || Product == ProductKind.Egg
                 ? PrimitiveType.Sphere
                 : PrimitiveType.Cube;
 
-            for (int index = 0; index < GameConfig.ShelfCapacity; index++)
+            for (int index = 0; index < columns * rows; index++)
             {
-                int row = index / 5;
-                int col = index % 5;
-                GameObject product = game.CreateDecor(shape, Product + "_Item", transform.position,
-                    new Vector3(0.22f, 0.28f, 0.2f), material, displayRoot);
-                product.transform.localPosition = new Vector3(-0.72f + col * 0.36f, 0.54f + row * 0.72f, -0.28f);
+                int row = index / columns;
+                int col = index % columns;
+                Vector3 slot = new Vector3(left + col * pitch, 0.5f + row * 0.72f, -0.26f);
+
+                GameObject product;
+                if (hasModel)
+                {
+                    Transform pivot = ModelKit.SpawnProp(displayRoot, visual.Model, material,
+                        visual.ShelfHeight, visual.ShelfLod, visual.UpFix);
+                    if (pivot == null)
+                    {
+                        hasModel = false;
+                        unitsPerVisual = 1;
+                        continue;
+                    }
+                    pivot.localPosition = slot;
+                    // A little turn each so a row of them does not look stamped out.
+                    pivot.localRotation = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
+                    product = pivot.gameObject;
+                }
+                else
+                {
+                    product = game.CreateDecor(shape, Product + "_Item", transform.position,
+                        new Vector3(0.22f, 0.28f, 0.2f), material, displayRoot);
+                    product.transform.localPosition = new Vector3(slot.x, slot.y + 0.04f, -0.28f);
+                }
+
                 product.SetActive(false);
                 visuals.Add(product);
             }
@@ -121,11 +156,12 @@ namespace MiniMart
 
         private void RebuildVisuals()
         {
+            int shown = Mathf.CeilToInt(Stock / (float)Mathf.Max(1, unitsPerVisual));
             for (int i = 0; i < visuals.Count; i++)
             {
                 if (visuals[i] == null) continue;
-                bool shown = i < Stock;
-                if (visuals[i].activeSelf != shown) visuals[i].SetActive(shown);
+                bool visible = i < shown;
+                if (visuals[i].activeSelf != visible) visuals[i].SetActive(visible);
             }
         }
     }
