@@ -271,8 +271,8 @@ namespace MiniMart
 
         private void BuildChicken(Vector3 position, string name)
         {
-            // The ithappy Animals_FREE chicken comes as a prefab with its own AnimatorController.
-            // Instantiating it and leaving the Animator running gives us the idle animation for free.
+            // The Easy Primitive Animals chicken is already a multi part prefab made from built-in
+            // cubes and spheres with solid colour materials. It needs no scaling or axis correction.
             GameObject prefab = Resources.Load<GameObject>(ModelKit.ChickenPrefab);
             if (prefab != null)
             {
@@ -280,20 +280,14 @@ namespace MiniMart
                 hen.name = name;
                 hen.transform.position = position;
                 hen.transform.rotation = Quaternion.Euler(0f, 160f, 0f);
-                hen.transform.localScale = Vector3.one * ChickenHeight;
+                // The pack chicken is built at a game ready scale already. A small bump brings it
+                // closer to the height the previous models used.
+                hen.transform.localScale = Vector3.one * 0.85f;
                 return;
             }
 
-            // Fallback: the FarmAnimals vertex colour chicken or a primitive.
-            GameObject root = new GameObject(name);
-            root.transform.position = position;
-            Transform body = ModelKit.SpawnProp(root.transform, ModelKit.ChickenModel,
-                VertexColorMaterial("Hen", new Color(0.96f, 0.93f, 0.86f)), ChickenHeight, 0, Vector3.zero);
-            if (body == null)
-            {
-                BuildToyChicken(position, name);
-                Destroy(root);
-            }
+            // Fallback: primitive blobs.
+            BuildToyChicken(position, name);
         }
 
         private void BuildToyChicken(Vector3 position, string label)
