@@ -160,6 +160,12 @@ namespace MiniMart
             summaryPanel.SetActive(false);
         }
 
+        /// <summary>Hides the in-game HUD while the title screen or a full-screen menu is open.</summary>
+        public void SetGameplayVisible(bool visible)
+        {
+            gameObject.SetActive(visible);
+        }
+
         // ----------------------------------------------------------------- refresh
 
         public void Refresh()

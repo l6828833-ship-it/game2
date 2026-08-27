@@ -78,11 +78,13 @@ namespace MiniMart
             if (startFresh)
             {
                 homeScreenActive = false;
+                UI.SetGameplayVisible(true);
                 UI.SetNotification("Welcome to Day 1 — harvest 4 products from the farm.", 5.5f);
             }
             else
             {
                 homeScreenActive = true;
+                UI.SetGameplayVisible(false);
                 Time.timeScale = 0f;
                 MiniMartHomeScreen.Create(this);
             }
@@ -144,6 +146,7 @@ namespace MiniMart
 
             homeScreenActive = false;
             Time.timeScale = 1f;
+            UI.SetGameplayVisible(true);
             MiniMartHomeScreen screen = FindFirstObjectByType<MiniMartHomeScreen>();
             if (screen != null) Destroy(screen.gameObject);
             UI.SetNotification(HasSavedGame

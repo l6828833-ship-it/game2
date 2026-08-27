@@ -70,18 +70,18 @@ namespace MiniMart
         private GameObject BuildMainCard(Font font)
         {
             RectTransform card = Panel("Home_Card", transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
-                new Vector2(0f, 0f), new Vector2(510f, 520f), Cream);
+                new Vector2(0f, 0f), new Vector2(460f, 455f), Cream);
             AddOutline(card.gameObject, Wood, 6);
 
             Text title = Label("Title", card, new Vector2(0f, -46f), new Vector2(450f, 105f), 45,
                 TextAnchor.MiddleCenter, Ink, FontStyle.Bold, font);
             title.text = "TINY TOWN\nMINI MART";
-            CenterTop(title.rectTransform, 0f, -35f);
+            CenterTop(title.rectTransform, 0f, -28f);
 
             Text subtitle = Label("Subtitle", card, new Vector2(0f, -155f), new Vector2(430f, 50f), 18,
                 TextAnchor.MiddleCenter, new Color(0.35f, 0.22f, 0.14f), FontStyle.Normal, font);
             subtitle.text = "Harvest  •  Stock  •  Serve\nBuild your little farm market";
-            CenterTop(subtitle.rectTransform, 0f, -145f);
+            CenterTop(subtitle.rectTransform, 0f, -128f);
 
             bool saved = game.HasSavedGame;
             Text saveLine = Label("Save_Information", card, new Vector2(0f, -213f), new Vector2(430f, 30f), 16,
@@ -89,21 +89,21 @@ namespace MiniMart
             saveLine.text = saved
                 ? "Saved farm: Day " + game.Day + "  •  $" + game.Money
                 : "Start your first small farm";
-            CenterTop(saveLine.rectTransform, 0f, -211f);
+            CenterTop(saveLine.rectTransform, 0f, -185f);
 
             Button primary = Button("Continue_Button", card, new Vector2(0f, -280f), new Vector2(350f, 58f),
                 saved ? "CONTINUE" : "START FARM", Leaf, Color.white, font);
-            CenterTop(primary.GetComponent<RectTransform>(), 0f, -260f);
+            CenterTop(primary.GetComponent<RectTransform>(), 0f, -226f);
             primary.onClick.AddListener(() => game.StartFromHome(false));
 
             Button fresh = Button("New_Game_Button", card, new Vector2(0f, -348f), new Vector2(350f, 48f),
                 "NEW GAME", new Color(0.86f, 0.52f, 0.24f), Color.white, font);
-            CenterTop(fresh.GetComponent<RectTransform>(), 0f, -331f);
+            CenterTop(fresh.GetComponent<RectTransform>(), 0f, -293f);
             fresh.onClick.AddListener(ShowNewGameConfirm);
 
             Button settings = Button("Settings_Button", card, new Vector2(0f, -408f), new Vector2(350f, 43f),
                 "SETTINGS", new Color(0.62f, 0.41f, 0.24f), Color.white, font);
-            CenterTop(settings.GetComponent<RectTransform>(), 0f, -389f);
+            CenterTop(settings.GetComponent<RectTransform>(), 0f, -348f);
             settings.onClick.AddListener(ShowSettings);
 
             Text footer = Label("Footer", card, Vector2.zero, new Vector2(440f, 26f), 14,
@@ -242,10 +242,15 @@ namespace MiniMart
 
             Text text = Label("Label", go.transform, Vector2.zero, size - new Vector2(16f, 8f), 19,
                 TextAnchor.MiddleCenter, foreground, FontStyle.Bold, font);
+            text.text = label;
             text.rectTransform.anchorMin = new Vector2(0.5f, 0.5f);
             text.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
             text.rectTransform.pivot = new Vector2(0.5f, 0.5f);
             text.rectTransform.anchoredPosition = Vector2.zero;
+            text.transform.SetAsLastSibling();
+            Shadow shadow = text.gameObject.AddComponent<Shadow>();
+            shadow.effectColor = new Color(0f, 0f, 0f, 0.28f);
+            shadow.effectDistance = new Vector2(1f, -1f);
             return button;
         }
 
@@ -259,8 +264,11 @@ namespace MiniMart
             text.fontStyle = style;
             text.color = color;
             text.alignment = alignment;
-            text.horizontalOverflow = HorizontalWrapMode.Wrap;
+            text.horizontalOverflow = HorizontalWrapMode.Overflow;
             text.verticalOverflow = VerticalWrapMode.Overflow;
+            text.resizeTextForBestFit = true;
+            text.resizeTextMinSize = 13;
+            text.resizeTextMaxSize = fontSize;
             text.raycastTarget = false;
             RectTransform rect = text.rectTransform;
             rect.anchorMin = new Vector2(0.5f, 0.5f);
