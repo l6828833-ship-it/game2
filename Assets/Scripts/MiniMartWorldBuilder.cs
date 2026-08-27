@@ -284,6 +284,9 @@ namespace MiniMart
                 hen.transform.rotation = Quaternion.Euler(0f, 160f, 0f);
                 hen.transform.localScale = Vector3.one * 0.85f;
                 RepaintChicken(hen);
+                // The prefab is built from Unity primitives, which ship with colliders. Left in
+                // place they form a wall around the nest that stops the player reaching the egg.
+                ModelKit.StripColliders(hen);
                 return;
             }
 
@@ -386,10 +389,11 @@ namespace MiniMart
         {
             GameObject root = new GameObject("Egg_Table");
             root.transform.position = position;
-            // 45° Y so the open front faces the isometric camera (which looks from south-west).
-            root.transform.rotation = Quaternion.Euler(0f, 45f, 0f);
+            // No rotation: the table lines up with the shop shelves, which are also unrotated.
+            root.transform.rotation = Quaternion.identity;
             ShelfUnit table = root.AddComponent<ShelfUnit>();
-            table.InitialiseEggTable(4, MiniMartGameManager.Instance.EggTableUpgraded);
+            // Starts with two of its four recesses filled, leaving room to stock the rest.
+            table.InitialiseEggTable(2, MiniMartGameManager.Instance.EggTableUpgraded);
             Shelves.Add(table);
         }
 
