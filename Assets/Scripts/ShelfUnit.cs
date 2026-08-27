@@ -126,7 +126,9 @@ namespace MiniMart
             MiniMartGameManager game = MiniMartGameManager.Instance;
             Material wood = game.MaterialFor("EggTableWood", new Color(0.58f, 0.34f, 0.16f));
             string model = eggTableUpgraded ? "Props/EggTable6" : "Props/EggTable4";
-            tableMesh = ModelKit.SpawnProp(transform, model, wood, 0.95f, 0, ModelKit.ZUpFix);
+            // Both uploaded egg tables are authored Y-up, unlike the Z-up farm props. Keeping their
+            // native axis makes the tabletop horizontal and lets the egg sockets rest on its surface.
+            tableMesh = ModelKit.SpawnProp(transform, model, wood, 0.95f, 0, Vector3.zero);
             if (tableMesh == null)
             {
                 // The store remains playable if a model import has not completed yet.
