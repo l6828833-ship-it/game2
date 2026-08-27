@@ -11,10 +11,16 @@ namespace MiniMart
     /// </summary>
     public class CustomerAgent : MonoBehaviour
     {
-        private static readonly Color[] Shirts =
+        /// <summary>
+        /// Shoppers are the same body as the player, so colour is what tells them apart. Cached by
+        /// index in the material cache, which keeps it to one material per colour rather than one
+        /// per shopper.
+        /// </summary>
+        private static readonly Color[] Tints =
         {
             new Color(0.96f, 0.43f, 0.57f), new Color(0.45f, 0.73f, 0.91f), new Color(0.62f, 0.76f, 0.37f),
-            new Color(0.82f, 0.55f, 0.92f), new Color(1f, 0.72f, 0.18f), new Color(0.29f, 0.78f, 0.70f)
+            new Color(0.82f, 0.55f, 0.92f), new Color(0.29f, 0.78f, 0.70f), new Color(0.98f, 0.56f, 0.28f),
+            new Color(0.55f, 0.60f, 0.92f), new Color(0.88f, 0.80f, 0.42f)
         };
 
         private static readonly Color[] Skins =
@@ -22,6 +28,9 @@ namespace MiniMart
             new Color(1f, 0.76f, 0.58f), new Color(0.63f, 0.40f, 0.28f), new Color(0.44f, 0.25f, 0.16f),
             new Color(0.88f, 0.61f, 0.43f), new Color(0.80f, 0.52f, 0.35f)
         };
+
+        /// <summary>Shoppers get a cheaper mesh than the player: there can be twenty of them.</summary>
+        private const int ShopperLod = 2;
 
         private readonly List<Vector3> path = new List<Vector3>();
 
@@ -31,6 +40,8 @@ namespace MiniMart
         private Renderer moodRenderer;
         private Transform basketVisual;
         private ShelfUnit targetShelf;
+        private CharacterLocomotion locomotion;
+        private float bodyHeight = 1.6f;
 
         private Vector3 destination;
         private Vector3 velocity;
@@ -52,24 +63,58 @@ namespace MiniMart
         {
             MiniMartGameManager game = MiniMartGameManager.Instance;
 
-            visual = new GameObject("CustomerToy").transform;
+            visual = new GameObject("CustomerBody").transform;
             visual.SetParent(transform, false);
-            ToyCharacter.Build(visual, Shirts[serial % Shirts.Length], Skins[(serial * 3 + 1) % Skins.Length],
-                "Customer" + serial, serial % 2 == 0);
+
+            int tint = serial % Tints.Length;
+            bodyHeight = 1.6f * Random.Range(0.93f, 1.05f);
+            BuildBody(game, serial, tint);
 
             GameObject mood = game.CreateDecor(PrimitiveType.Sphere, "Customer_Mood", transform.position,
                 new Vector3(0.2f, 0.2f, 0.2f), MoodMaterial(), visual);
-            mood.transform.localPosition = new Vector3(0f, 1.55f, 0f);
+            mood.transform.localPosition = new Vector3(0f, bodyHeight + 0.22f, 0f);
             moodLight = mood.transform;
             moodRenderer = mood.GetComponent<Renderer>();
 
-            walkSpeed = Random.Range(1.55f, 2.15f);
+            walkSpeed = Random.Range(1.25f, 1.65f);
             walkPhase = Random.Range(0f, 6.28f);
             maxPatience = Random.Range(26f, 42f);
             patience = maxPatience;
             stateTimer = Random.Range(0.4f, 1.2f);
             state = CustomerState.Entering;
             SetDestination(new Vector3(-7.6f, 0f, -3.1f + Random.Range(-0.6f, 0.6f)));
+        }
+
+        /// <summary>
+        /// The shared skinned body tinted for this shopper, falling back to the primitive toy when
+        /// the imported character is unavailable.
+        /// </summary>
+        private void BuildBody(MiniMartGameManager game, int serial, int tint)
+        {
+            Material material = game.MaterialFor("CustomerTint_" + tint, Tints[tint]);
+            CharacterRig.Rig rig = CharacterRig.Build(visual, material, bodyHeight, ShopperLod);
+
+            if (rig != null)
+            {
+                rig.Model.name = "Customer_Body_" + serial;
+                AnimationClip walk = CharacterRig.LoadClip(CharacterRig.CustomerWalkClip)
+                    ?? CharacterRig.LoadClip(CharacterRig.RunClip);
+                if (walk != null)
+                {
+                    locomotion = gameObject.AddComponent<CharacterLocomotion>();
+                    if (!locomotion.Setup(rig.Animator, walk,
+                        CharacterRig.LoadClip(CharacterRig.IdleClip),
+                        CharacterRig.LoadClip(CharacterRig.CarryIdleClip), rig.Pelvis))
+                    {
+                        Destroy(locomotion);
+                        locomotion = null;
+                    }
+                }
+                return;
+            }
+
+            ToyCharacter.Build(visual, Tints[tint], Skins[(serial * 3 + 1) % Skins.Length],
+                "Customer" + serial, serial % 2 == 0);
         }
 
         private void Update()
@@ -79,6 +124,11 @@ namespace MiniMart
 
             TickPatience(game);
             Move();
+            if (locomotion != null && locomotion.IsReady)
+            {
+                Vector3 flat = new Vector3(velocity.x, 0f, velocity.z);
+                locomotion.Advance(arrived ? 0f : flat.magnitude, hasItem, Time.deltaTime);
+            }
             UpdateMood();
             if (arrived) OnArrived(game);
         }
@@ -98,6 +148,7 @@ namespace MiniMart
             if (arrived || path.Count == 0)
             {
                 velocity = Vector3.Lerp(velocity, Vector3.zero, Time.deltaTime * 8f);
+                if (locomotion != null) return;
                 visual.localPosition = Vector3.Lerp(visual.localPosition, Vector3.zero, Time.deltaTime * 8f);
                 visual.localRotation = Quaternion.Slerp(visual.localRotation, Quaternion.identity, Time.deltaTime * 8f);
                 return;
@@ -121,6 +172,8 @@ namespace MiniMart
             if (velocity.sqrMagnitude > 0.05f)
                 transform.forward = Vector3.Slerp(transform.forward, velocity.normalized, 9f * Time.deltaTime);
 
+            // The imported walk cycle already carries the bob and sway; only the toy needs faking.
+            if (locomotion != null) return;
             walkPhase += Time.deltaTime * 7f;
             visual.localPosition = new Vector3(0f, Mathf.Abs(Mathf.Sin(walkPhase)) * 0.05f, 0f);
             visual.localRotation = Quaternion.Euler(0f, 0f, Mathf.Sin(walkPhase) * 2.5f);
@@ -163,7 +216,7 @@ namespace MiniMart
         private void UpdateMood()
         {
             if (moodLight == null) return;
-            moodLight.localPosition = new Vector3(0f, 1.55f + Mathf.Sin(Time.time * 2f + walkPhase) * 0.03f, 0f);
+            moodLight.localPosition = new Vector3(0f, bodyHeight + 0.22f + Mathf.Sin(Time.time * 2f + walkPhase) * 0.03f, 0f);
             if (moodRenderer != null) moodRenderer.sharedMaterial = MoodMaterial();
         }
 
@@ -257,7 +310,10 @@ namespace MiniMart
                 basketVisual = game.CreateDecor(PrimitiveType.Cube, "Customer_Basket", transform.position,
                     new Vector3(0.3f, 0.24f, 0.24f), game.MaterialFor("Product_" + product, game.ProductColor(product)), visual).transform;
             }
-            basketVisual.localPosition = new Vector3(0.34f, 0.55f, 0.16f);
+            // The holding clips carry the item in front, the toy body tucks it under one arm.
+            basketVisual.localPosition = locomotion != null
+                ? new Vector3(0f, bodyHeight * 0.58f, 0.26f)
+                : new Vector3(0.34f, 0.55f, 0.16f);
             basketVisual.gameObject.SetActive(true);
             Renderer renderer = basketVisual.GetComponent<Renderer>();
             if (renderer != null) renderer.sharedMaterial = game.MaterialFor("Product_" + product, game.ProductColor(product));

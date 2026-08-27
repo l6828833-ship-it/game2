@@ -11,13 +11,14 @@ namespace MiniMart.EditorTools
     /// </summary>
     public class MixamoModelPostprocessor : AssetPostprocessor
     {
-        private const string AnimatedPlayerPrefix = "Assets/Resources/Characters/FarmPlayer";
+        private const string CharacterFolder = "Assets/Resources/Characters/";
 
         private static readonly string[] AnimatedPlayerAssets =
         {
-            AnimatedPlayerPrefix + "Run.fbx",
-            AnimatedPlayerPrefix + "Idle.fbx",
-            AnimatedPlayerPrefix + "CarryIdle.fbx"
+            CharacterFolder + "FarmPlayerRun.fbx",
+            CharacterFolder + "FarmPlayerIdle.fbx",
+            CharacterFolder + "FarmPlayerCarryIdle.fbx",
+            CharacterFolder + "FarmCustomerWalk.fbx"
         };
 
         /// <summary>
@@ -58,7 +59,7 @@ namespace MiniMart.EditorTools
 
         private void OnPreprocessModel()
         {
-            if (!assetPath.StartsWith(AnimatedPlayerPrefix) || !assetPath.EndsWith(".fbx")) return;
+            if (!assetPath.StartsWith(CharacterFolder) || !assetPath.EndsWith(".fbx")) return;
             if (!(assetImporter is ModelImporter importer) || !importer.importSettingsMissing) return;
 
             // Generic keeps the clip bound to the rig it shipped with: no avatar mapping to get wrong.

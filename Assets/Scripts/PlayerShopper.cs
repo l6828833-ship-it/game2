@@ -9,9 +9,6 @@ namespace MiniMart
     {
         private enum TargetKind { None, Harvest, Shelf, Upgrade, Checkout }
 
-        private const string AnimatedModelPath = "Characters/FarmPlayerRun";
-        private const string IdleClipPath = "Characters/FarmPlayerIdle";
-        private const string CarryIdleClipPath = "Characters/FarmPlayerCarryIdle";
         private const string StaticModelPath = "Characters/FarmPlayer";
 
         /// <summary>Roughly the capsule height, so the body reads at the right size next to the shelves.</summary>
@@ -63,9 +60,7 @@ namespace MiniMart
         private void BuildVisual()
         {
             Material yellow = MiniMartGameManager.Instance.MaterialFor("PlayerYellow", new Color(1f, 0.82f, 0.10f));
-
-            GameObject animatedAsset = Resources.Load<GameObject>(AnimatedModelPath);
-            if (animatedAsset != null && TryBuildAnimatedModel(animatedAsset, yellow)) return;
+            if (TryBuildAnimatedModel(yellow)) return;
 
             GameObject staticAsset = Resources.Load<GameObject>(StaticModelPath);
             if (staticAsset != null)
@@ -75,8 +70,8 @@ namespace MiniMart
                 imported.transform.localPosition = Vector3.zero;
                 imported.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
                 imported.transform.localScale = Vector3.one * 0.72f;
-                Paint(imported, yellow);
-                StripColliders(imported);
+                CharacterRig.Paint(imported, yellow);
+                CharacterRig.StripColliders(imported);
                 return;
             }
 
@@ -85,156 +80,43 @@ namespace MiniMart
         }
 
         /// <summary>
-        /// Sets up the skinned Mixamo character and its run take. Returns false if the model came in
-        /// without an Animator or a clip, which means the rig import settings need attention.
+        /// Sets up the skinned Mixamo body with its run take plus the two idles. Returns false when the
+        /// model or its clip is missing, which means the rig import settings need attention.
         /// </summary>
-        private bool TryBuildAnimatedModel(GameObject asset, Material material)
+        private bool TryBuildAnimatedModel(Material material)
         {
-            GameObject model = Instantiate(asset, visual);
-            model.name = "Farm_Player_Rig";
-            model.transform.localPosition = Vector3.zero;
-            model.transform.localRotation = Quaternion.identity;
-            model.transform.localScale = Vector3.one;
-
-            AnimationClip run = LoadLongestClip(AnimatedModelPath);
+            AnimationClip run = CharacterRig.LoadClip(CharacterRig.RunClip);
             if (run == null)
             {
-                Debug.LogWarning(AnimatedModelPath + " imported without an animation clip. Tick Import "
+                Debug.LogWarning(CharacterRig.RunClip + " imported without an animation clip. Tick Import "
                     + "Animation on the model and press Play again.");
-                Destroy(model);
                 return false;
             }
 
+            CharacterRig.Rig rig = CharacterRig.Build(visual, material, TargetBodyHeight, 0);
+            if (rig == null) return false;
+            rig.Model.name = "Farm_Player_Rig";
+
             // Every clip comes off the same Mixamo rig, so the idles play on this hierarchy too.
-            AnimationClip idle = LoadLongestClip(IdleClipPath);
-            AnimationClip carryIdle = LoadLongestClip(CarryIdleClipPath);
-
-            // An FBX imported with Avatar Setup set to "No Avatar" carries the clip but no Animator.
-            // Generic clips bind by transform path, so adding one on the model root is enough.
-            Animator animator = model.GetComponent<Animator>() ?? model.GetComponentInChildren<Animator>(true);
-            if (animator == null) animator = model.AddComponent<Animator>();
-
-            KeepOnlyFirstLod(model);
-            float fitScale = FitToController(model.transform);
-            Paint(model, material);
-            StripColliders(model);
+            AnimationClip idle = CharacterRig.LoadClip(CharacterRig.IdleClip);
+            AnimationClip carryIdle = CharacterRig.LoadClip(CharacterRig.CarryIdleClip);
 
             locomotion = gameObject.AddComponent<CharacterLocomotion>();
-            if (locomotion.Setup(animator, run, idle, carryIdle, FindPelvis(model.transform)))
+            if (locomotion.Setup(rig.Animator, run, idle, carryIdle, rig.Pelvis))
             {
                 Debug.Log("Player rig ready: run '" + run.name + "' " + run.length.ToString("0.00") + "s"
+                    + " (authored " + locomotion.AuthoredSpeed.ToString("0.00") + " u/s)"
                     + ", idle " + (idle != null ? idle.length.ToString("0.00") + "s" : "missing")
                     + ", carry idle " + (carryIdle != null ? carryIdle.length.ToString("0.00") + "s" : "missing")
-                    + ", body scaled x" + fitScale.ToString("0.000"));
+                    + ", body scaled x" + rig.Scale.ToString("0.000"));
                 return true;
             }
 
-            Debug.LogWarning("Could not start the run clip '" + run.name + "' on " + AnimatedModelPath + ".");
+            Debug.LogWarning("Could not start the run clip '" + run.name + "' on the player rig.");
             Destroy(locomotion);
             locomotion = null;
-            Destroy(model);
+            Destroy(rig.Model);
             return false;
-        }
-
-        /// <summary>The bone the clips translate. Mixamo calls it mixamorig:Hips.</summary>
-        private static Transform FindPelvis(Transform modelRoot)
-        {
-            foreach (Transform bone in modelRoot.GetComponentsInChildren<Transform>(true))
-            {
-                if (bone.name.IndexOf("Hips", System.StringComparison.OrdinalIgnoreCase) >= 0) return bone;
-            }
-            return null;
-        }
-
-        /// <summary>Mixamo exports five stacked LOD skins. Keep one, drop the rest and the group.</summary>
-        private static void KeepOnlyFirstLod(GameObject model)
-        {
-            LODGroup group = model.GetComponent<LODGroup>();
-            if (group != null) Destroy(group);
-
-            SkinnedMeshRenderer[] skins = model.GetComponentsInChildren<SkinnedMeshRenderer>(true);
-            if (skins.Length <= 1) return;
-
-            int keep = 0;
-            for (int i = 0; i < skins.Length; i++)
-            {
-                if (!skins[i].name.EndsWith("LOD0")) continue;
-                keep = i;
-                break;
-            }
-            for (int i = 0; i < skins.Length; i++)
-            {
-                if (i != keep) Destroy(skins[i].gameObject);
-            }
-        }
-
-        /// <summary>
-        /// Scales the imported body to the capsule and drops it so the feet sit on the floor. Measured
-        /// from mesh bounds rather than hard coded, because the FBX import scale is not ours to assume.
-        /// </summary>
-        private float FitToController(Transform model)
-        {
-            if (!TryMeasureHeight(model, out Bounds bounds) || bounds.size.y <= 0.0001f) return 1f;
-
-            float scale = Mathf.Clamp(TargetBodyHeight / bounds.size.y, 0.005f, 20f);
-            model.localScale = Vector3.one * scale;
-            model.localPosition = new Vector3(0f, -bounds.min.y * scale, 0f);
-            return scale;
-        }
-
-        /// <summary>Combined renderer bounds expressed in <paramref name="root"/>'s local space.</summary>
-        private static bool TryMeasureHeight(Transform root, out Bounds bounds)
-        {
-            bounds = new Bounds();
-            bool measured = false;
-
-            foreach (Renderer renderer in root.GetComponentsInChildren<Renderer>(true))
-            {
-                Mesh mesh = renderer is SkinnedMeshRenderer skinned ? skinned.sharedMesh : null;
-                if (mesh == null)
-                {
-                    MeshFilter filter = renderer.GetComponent<MeshFilter>();
-                    mesh = filter != null ? filter.sharedMesh : null;
-                }
-                if (mesh == null) continue;
-
-                Bounds local = mesh.bounds;
-                Matrix4x4 toRoot = root.worldToLocalMatrix * renderer.transform.localToWorldMatrix;
-                for (int corner = 0; corner < 8; corner++)
-                {
-                    Vector3 point = new Vector3(
-                        (corner & 1) == 0 ? local.min.x : local.max.x,
-                        (corner & 2) == 0 ? local.min.y : local.max.y,
-                        (corner & 4) == 0 ? local.min.z : local.max.z);
-                    Vector3 inRoot = toRoot.MultiplyPoint3x4(point);
-                    if (measured) bounds.Encapsulate(inRoot);
-                    else { bounds = new Bounds(inRoot, Vector3.zero); measured = true; }
-                }
-            }
-            return measured;
-        }
-
-        private static AnimationClip LoadLongestClip(string resourcePath)
-        {
-            AnimationClip[] clips = Resources.LoadAll<AnimationClip>(resourcePath);
-            AnimationClip best = null;
-            for (int i = 0; i < clips.Length; i++)
-            {
-                AnimationClip clip = clips[i];
-                if (clip == null || clip.name.StartsWith("__preview__")) continue;
-                if (best == null || clip.length > best.length) best = clip;
-            }
-            return best;
-        }
-
-        private static void Paint(GameObject root, Material material)
-        {
-            foreach (Renderer renderer in root.GetComponentsInChildren<Renderer>(true)) renderer.sharedMaterial = material;
-        }
-
-        private static void StripColliders(GameObject root)
-        {
-            foreach (Collider collider in root.GetComponentsInChildren<Collider>(true)) Destroy(collider);
         }
 
         /// <summary>
@@ -328,10 +210,7 @@ namespace MiniMart
             if (locomotion == null || !locomotion.IsReady) return;
 
             float groundSpeed = new Vector3(moveVelocity.x, 0f, moveVelocity.z).magnitude;
-            float rate = groundSpeed <= 0.2f
-                ? 0f
-                : Mathf.Clamp(groundSpeed / GameConfig.PlayerWalkSpeed, 0.5f, 2f);
-            locomotion.Advance(rate, carrying != null, Time.deltaTime);
+            locomotion.Advance(groundSpeed, carrying != null, Time.deltaTime);
         }
 
         private void AnimateWalk(float blend)
