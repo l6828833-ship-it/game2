@@ -18,13 +18,13 @@ namespace MiniMart
         public float Reputation => save.reputation;
         public DayPhase Phase { get; private set; }
         public bool IsPaused => paused;
-        public int CrateSize => GameConfig.CrateSize(save.crateUpgrade);
+        public int CrateSize => GameConfig.CarryCapacity;
         public int RentDue => GameConfig.RentForDay(save.day);
         public float DayProgress => Mathf.Clamp01(dayTimer / GameConfig.DayLength);
         public float ClockHour => Mathf.Lerp(GameConfig.OpeningHour, GameConfig.ClosingHour, DayProgress);
 
         public int EarnedToday { get; private set; }
-        public int SpentToday { get; private set; }
+
         public int ServedToday { get; private set; }
         public int LostToday { get; private set; }
 
@@ -37,7 +37,7 @@ namespace MiniMart
 
         public readonly List<ShelfUnit> Shelves = new List<ShelfUnit>();
         public readonly List<FarmProducer> FarmProducers = new List<FarmProducer>();
-        public readonly List<UpgradeStation> Upgrades = new List<UpgradeStation>();
+
         public readonly List<CustomerAgent> Customers = new List<CustomerAgent>();
 
         private StoreSave save;
@@ -137,7 +137,7 @@ namespace MiniMart
 
             save.lifetimeEarnings += EarnedToday;
             Sfx.Play(SfxKind.DayEnd);
-            UI.ShowDaySummary(save.day, EarnedToday, SpentToday, ServedToday, LostToday, rent, paid, Money, shortfall);
+            UI.ShowDaySummary(save.day, EarnedToday, ServedToday, LostToday, rent, paid, Money, shortfall);
             Save();
         }
 
@@ -147,7 +147,6 @@ namespace MiniMart
             Phase = DayPhase.Open;
             dayTimer = 0f;
             EarnedToday = 0;
-            SpentToday = 0;
             ServedToday = 0;
             LostToday = 0;
             spawnTimer = 2.5f;
@@ -162,7 +161,7 @@ namespace MiniMart
         {
             if (Phase != DayPhase.Open) return;
             spawnTimer -= Time.deltaTime;
-            int cap = 4 + save.customerUpgrade * 2;
+            int cap = GameConfig.MaxShoppers;
             if (spawnTimer > 0f || Customers.Count >= cap) return;
 
             if (TotalStock() <= 0)
@@ -172,8 +171,8 @@ namespace MiniMart
             }
 
             SpawnCustomer();
-            float reputation = Mathf.Clamp01(save.reputation / 100f);
-            float busyness = Mathf.Clamp01((save.customerUpgrade + reputation * 3f) / 8f);
+            // Reputation alone drives the door now that there is nothing to buy to speed it up.
+            float busyness = Mathf.Clamp01(save.reputation / 100f);
             spawnTimer = Random.Range(Mathf.Lerp(6.5f, 2.4f, busyness), Mathf.Lerp(10.5f, 4.2f, busyness));
         }
 
@@ -202,20 +201,6 @@ namespace MiniMart
             Money += amount;
             EarnedToday += amount;
             Save();
-        }
-
-        public bool TrySpend(int amount)
-        {
-            if (Money < amount)
-            {
-                Sfx.Play(SfxKind.Deny);
-                UI.SetNotification("You need $" + amount + " for that. Sell a few more items first.", 2f);
-                return false;
-            }
-            Money -= amount;
-            SpentToday += amount;
-            Save();
-            return true;
         }
 
         public void CompleteSale(CustomerAgent customer)
@@ -250,48 +235,7 @@ namespace MiniMart
             save.reputation = Mathf.Clamp(save.reputation + delta, 0f, 100f);
         }
 
-        public int GetSaleValue(ProductKind kind) => GameConfig.BasePrice(kind) + save.premiumUpgrade * 2;
-
-        public int UpgradeLevel(UpgradeType type)
-        {
-            switch (type)
-            {
-                case UpgradeType.ExtraShelf: return save.extraShelves;
-                case UpgradeType.Customers: return save.customerUpgrade;
-                case UpgradeType.Premium: return save.premiumUpgrade;
-                default: return save.crateUpgrade;
-            }
-        }
-
-        public int PriceFor(UpgradeType type) => GameConfig.UpgradePrice(type, UpgradeLevel(type));
-
-        public bool IsUpgradeMaxed(UpgradeType type) => UpgradeLevel(type) >= GameConfig.MaxUpgradeLevel;
-
-        public void ApplyUpgrade(UpgradeType type)
-        {
-            switch (type)
-            {
-                case UpgradeType.ExtraShelf:
-                    save.extraShelves++;
-                    CreateExtraShelf(save.extraShelves - 1);
-                    UI.SetNotification("New shelf built. More stock on the floor!", 2.4f);
-                    break;
-                case UpgradeType.Customers:
-                    save.customerUpgrade++;
-                    UI.SetNotification("Word is spreading. Expect a busier store.", 2.4f);
-                    break;
-                case UpgradeType.Premium:
-                    save.premiumUpgrade++;
-                    UI.SetNotification("Premium pricing unlocked. Every item sells for $2 more.", 2.4f);
-                    break;
-                default:
-                    save.crateUpgrade++;
-                    UI.SetNotification("Bigger crates: " + CrateSize + " units per farm trip.", 2.4f);
-                    break;
-            }
-            Sfx.Play(SfxKind.Upgrade);
-            Save();
-        }
+        public int GetSaleValue(ProductKind kind) => GameConfig.BasePrice(kind);
 
         // ----------------------------------------------------------------- shelves
 

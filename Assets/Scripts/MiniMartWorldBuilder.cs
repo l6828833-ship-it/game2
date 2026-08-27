@@ -9,12 +9,6 @@ namespace MiniMart
     /// </summary>
     public partial class MiniMartGameManager
     {
-        private static readonly ProductKind[] ExtraShelfProducts =
-        {
-            ProductKind.Watermelon, ProductKind.Tomato, ProductKind.Banana, ProductKind.Tomato,
-            ProductKind.Tomato, ProductKind.Watermelon, ProductKind.Banana, ProductKind.Watermelon
-        };
-
         /// <summary>Prop sizes in metres. The nest is wide and shallow, so its height stays low.</summary>
         private const float NestHeight = 0.34f;
         private const float ChickenHeight = 0.46f;
@@ -35,13 +29,6 @@ namespace MiniMart
         private const float PastureCenterZ = (PastureNorthZ + PastureSouthZ) * 0.5f;
         private const float PastureWidth = PastureEastX - PastureWestX;
         private const float PastureDepth = PastureNorthZ - PastureSouthZ;
-
-        /// <summary>Free floor space for purchased shelves, in build order.</summary>
-        private static readonly Vector2[] ExtraShelfSlots =
-        {
-            new Vector2(6.4f, 1.7f), new Vector2(9.2f, 1.7f), new Vector2(12.0f, 1.7f), new Vector2(14.6f, 1.7f),
-            new Vector2(12.0f, 4.6f), new Vector2(14.6f, 4.6f), new Vector2(6.4f, -1.2f), new Vector2(9.2f, -1.2f)
-        };
 
         private readonly Dictionary<ProductKind, Color> productColors = new Dictionary<ProductKind, Color>();
         private readonly Dictionary<string, Material> materialCache = new Dictionary<string, Material>();
@@ -82,7 +69,6 @@ namespace MiniMart
             BuildProps();
             BuildShelves();
             BuildCheckout();
-            BuildUpgrades();
             BuildPlayer();
             BuildCamera();
             BuildLighting();
@@ -321,17 +307,6 @@ namespace MiniMart
                 CreateShelf(new Vector3(StoreLayout.ShelfColumns[i], 0f, StoreLayout.BackRowZ), backRow[i], GameConfig.ShelfCapacity - 3);
                 CreateShelf(new Vector3(StoreLayout.ShelfColumns[i], 0f, StoreLayout.FrontRowZ), frontRow[i], GameConfig.ShelfCapacity - 3);
             }
-            for (int i = 0; i < save.extraShelves; i++) CreateExtraShelf(i);
-        }
-
-        /// <summary>
-        /// Extra shelves fill hand picked slots on the right hand side of the shop so they never
-        /// land on the coolers, the produce display, the till or the upgrade pads.
-        /// </summary>
-        private void CreateExtraShelf(int index)
-        {
-            Vector2 slot = ExtraShelfSlots[index % ExtraShelfSlots.Length];
-            CreateShelf(new Vector3(slot.x, 0f, slot.y), ExtraShelfProducts[index % ExtraShelfProducts.Length], GameConfig.ShelfCapacity - 3);
         }
 
         private void CreateShelf(Vector3 position, ProductKind product, int stock)
@@ -360,23 +335,6 @@ namespace MiniMart
             root.transform.position = new Vector3(11.4f, 0f, -2.9f);
             Checkout = root.AddComponent<CheckoutStation>();
             Checkout.Initialise();
-        }
-
-        private void BuildUpgrades()
-        {
-            CreateUpgrade(new Vector3(1.5f, 0f, -4.55f), UpgradeType.Crate, new Color(0.55f, 0.85f, 0.45f));
-            CreateUpgrade(new Vector3(4.0f, 0f, -4.55f), UpgradeType.ExtraShelf, new Color(0.37f, 0.84f, 0.89f));
-            CreateUpgrade(new Vector3(6.5f, 0f, -4.55f), UpgradeType.Customers, new Color(0.96f, 0.57f, 0.82f));
-            CreateUpgrade(new Vector3(9.0f, 0f, -4.55f), UpgradeType.Premium, new Color(1f, 0.78f, 0.2f));
-        }
-
-        private void CreateUpgrade(Vector3 position, UpgradeType kind, Color color)
-        {
-            GameObject root = new GameObject("Upgrade_" + kind);
-            root.transform.position = position;
-            UpgradeStation upgrade = root.AddComponent<UpgradeStation>();
-            upgrade.Initialise(kind, color);
-            Upgrades.Add(upgrade);
         }
 
         private void BuildPlayer()

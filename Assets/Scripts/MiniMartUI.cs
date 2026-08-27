@@ -236,16 +236,15 @@ namespace MiniMart
             SetNotification(paused ? string.Empty : "Back to work!", paused ? 0f : 1.2f);
         }
 
-        public void ShowDaySummary(int day, int earned, int spent, int served, int lost, int rent, int rentPaid, int balance, bool shortfall)
+        public void ShowDaySummary(int day, int earned, int served, int lost, int rent, int rentPaid, int balance, bool shortfall)
         {
             if (summaryPanel == null) return;
             string body = "Day " + day + " closed\n\n"
-                + "Earned            $" + earned + "\n"
-                + "Spent on upgrades $" + spent + "\n"
-                + "Shoppers served   " + served + "\n"
-                + "Walked out        " + lost + "\n"
-                + "Rent              $" + rentPaid + " of $" + rent + "\n"
-                + "Balance           $" + balance + "\n\n";
+                + "Earned           $" + earned + "\n"
+                + "Shoppers served  " + served + "\n"
+                + "Walked out       " + lost + "\n"
+                + "Rent             $" + rentPaid + " of $" + rent + "\n"
+                + "Balance          $" + balance + "\n\n";
             body += shortfall
                 ? "You could not cover rent, so your reputation took a hit."
                 : "Rent paid in full. Nice work.";

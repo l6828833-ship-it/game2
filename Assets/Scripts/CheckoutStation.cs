@@ -59,7 +59,7 @@ namespace MiniMart
             if (Vector3.Distance(first.transform.position, CounterPosition) > 0.75f) return;
 
             scanTimer += Time.deltaTime;
-            float scanDuration = Mathf.Max(0.5f, 1.3f - game.UpgradeLevel(UpgradeType.Premium) * 0.1f);
+            float scanDuration = GameConfig.ScanDuration;
             ScanProgress = Mathf.Clamp01(scanTimer / scanDuration);
             if (scanTimer < scanDuration) return;
             ScanProgress = 0f;

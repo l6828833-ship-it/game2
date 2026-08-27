@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace MiniMart
 {
-    public enum SfxKind { Harvest, Stock, Sale, Deny, Upgrade, Unhappy, DayEnd, Register, Cluck }
+    public enum SfxKind { Harvest, Stock, Sale, Deny, Unhappy, DayEnd, Register, Cluck }
 
     /// <summary>
     /// Generates every sound effect procedurally at boot, so the project needs no audio assets
@@ -38,7 +38,6 @@ namespace MiniMart
             clips[SfxKind.Unhappy] = Sweep("Sfx_Unhappy", 0.34f, 420f, 160f, 0.45f, true);
             clips[SfxKind.Register] = Sweep("Sfx_Register", 0.09f, 1180f, 1180f, 0.35f, true);
             clips[SfxKind.Sale] = Arpeggio("Sfx_Sale", new[] { 784f, 1046f }, 0.1f, 0.45f, false);
-            clips[SfxKind.Upgrade] = Arpeggio("Sfx_Upgrade", new[] { 523f, 659f, 784f, 1046f }, 0.09f, 0.45f, false);
             clips[SfxKind.DayEnd] = Arpeggio("Sfx_DayEnd", new[] { 659f, 523f, 392f, 523f }, 0.16f, 0.4f, false);
             // Two clipped chirps, high then lower: close enough to a hen announcing an egg.
             clips[SfxKind.Cluck] = Arpeggio("Sfx_Cluck", new[] { 1320f, 880f }, 0.07f, 0.3f, true);

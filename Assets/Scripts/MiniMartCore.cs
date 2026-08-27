@@ -5,8 +5,6 @@ namespace MiniMart
     /// <summary>Everything the store can sell. Farm plots produce a subset of these.</summary>
     public enum ProductKind { Milk, Bread, Apple, Juice, Cereal, Chips, Water, Cookies, Egg, Tomato, Watermelon, Banana }
 
-    public enum UpgradeType { ExtraShelf, Customers, Premium, Crate }
-
     /// <summary>Open = shoppers arrive. Closing = doors shut and the day gets totalled up.</summary>
     public enum DayPhase { Open, Closing }
 
@@ -19,7 +17,12 @@ namespace MiniMart
         public const int StartingMoney = 100;
         public const int ShelfCapacity = 15;
         public const int CarryCapacity = 4;
-        public const int MaxUpgradeLevel = 8;
+
+        /// <summary>Shoppers on the floor at once, and how brisk the door is at full reputation.</summary>
+        public const int MaxShoppers = 6;
+
+        /// <summary>Seconds to ring up one shopper while you are stood at the till.</summary>
+        public const float ScanDuration = 1.1f;
 
         public const float DayLength = 165f;
         public const float ClosingLength = 11f;
@@ -32,31 +35,6 @@ namespace MiniMart
 
         /// <summary>Rent is charged when the store closes, so day one is a gentle warm up.</summary>
         public static int RentForDay(int day) => 25 + Mathf.Max(0, day - 1) * 15;
-
-        /// <summary>The farmer stacks exactly four individual items per trip.</summary>
-        public static int CrateSize(int crateLevel) => CarryCapacity;
-
-        public static int UpgradePrice(UpgradeType type, int level)
-        {
-            switch (type)
-            {
-                case UpgradeType.ExtraShelf: return 60 + level * 55;
-                case UpgradeType.Customers: return 90 + level * 70;
-                case UpgradeType.Premium: return 120 + level * 90;
-                default: return 75 + level * 45;
-            }
-        }
-
-        public static string UpgradeName(UpgradeType type)
-        {
-            switch (type)
-            {
-                case UpgradeType.ExtraShelf: return "Extra shelf";
-                case UpgradeType.Customers: return "Busier town";
-                case UpgradeType.Premium: return "Premium prices";
-                default: return "Bigger crates";
-            }
-        }
 
         public static string ProductLabel(ProductKind kind)
         {
@@ -73,7 +51,7 @@ namespace MiniMart
             }
         }
 
-        /// <summary>Base shelf price per product before the premium upgrade bonus.</summary>
+        /// <summary>What one unit of each product sells for at the till.</summary>
         public static int BasePrice(ProductKind kind)
         {
             switch (kind)
@@ -100,10 +78,7 @@ namespace MiniMart
     {
         public int version = 2;
         public int money = GameConfig.StartingMoney;
-        public int extraShelves;
-        public int customerUpgrade;
-        public int premiumUpgrade;
-        public int crateUpgrade;
+        // Upgrade levels used to live here. Old saves keep the keys and JsonUtility ignores them.
         public int day = 1;
         public float reputation = 80f;
         public int lifetimeEarnings;
