@@ -94,24 +94,34 @@ namespace MiniMart
             model.transform.localRotation = Quaternion.identity;
             model.transform.localScale = Vector3.one;
 
-            Animator animator = model.GetComponent<Animator>() ?? model.GetComponentInChildren<Animator>(true);
             AnimationClip clip = LoadLongestClip(AnimatedModelPath);
-            if (animator == null || clip == null)
+            if (clip == null)
             {
-                Debug.LogWarning("Characters/FarmPlayerRun has no Animator or animation clip. "
-                    + "Set its Rig to Generic and tick Import Animation, then press Play again.");
+                Debug.LogWarning(AnimatedModelPath + " imported without an animation clip. Tick Import "
+                    + "Animation on the model and press Play again.");
                 Destroy(model);
                 return false;
             }
 
+            // An FBX imported with Avatar Setup set to "No Avatar" carries the clip but no Animator.
+            // Generic clips bind by transform path, so adding one on the model root is enough.
+            Animator animator = model.GetComponent<Animator>() ?? model.GetComponentInChildren<Animator>(true);
+            if (animator == null) animator = model.AddComponent<Animator>();
+
             KeepOnlyFirstLod(model);
-            FitToController(model.transform);
+            float fitScale = FitToController(model.transform);
             Paint(model, material);
             StripColliders(model);
 
             runAnimator = gameObject.AddComponent<CharacterRunAnimator>();
-            if (runAnimator.Setup(animator, clip)) return true;
+            if (runAnimator.Setup(animator, clip))
+            {
+                Debug.Log("Player rig ready: '" + clip.name + "' " + clip.length.ToString("0.00")
+                    + "s, body scaled x" + fitScale.ToString("0.000"));
+                return true;
+            }
 
+            Debug.LogWarning("Could not start the run clip '" + clip.name + "' on " + AnimatedModelPath + ".");
             Destroy(runAnimator);
             runAnimator = null;
             Destroy(model);
@@ -144,13 +154,14 @@ namespace MiniMart
         /// Scales the imported body to the capsule and drops it so the feet sit on the floor. Measured
         /// from mesh bounds rather than hard coded, because the FBX import scale is not ours to assume.
         /// </summary>
-        private void FitToController(Transform model)
+        private float FitToController(Transform model)
         {
-            if (!TryMeasureHeight(model, out Bounds bounds) || bounds.size.y <= 0.0001f) return;
+            if (!TryMeasureHeight(model, out Bounds bounds) || bounds.size.y <= 0.0001f) return 1f;
 
             float scale = Mathf.Clamp(TargetBodyHeight / bounds.size.y, 0.005f, 20f);
             model.localScale = Vector3.one * scale;
             model.localPosition = new Vector3(0f, -bounds.min.y * scale, 0f);
+            return scale;
         }
 
         /// <summary>Combined renderer bounds expressed in <paramref name="root"/>'s local space.</summary>

@@ -29,6 +29,11 @@ namespace MiniMart.EditorTools
                 importer.animationType = ModelImporterAnimationType.Generic;
                 changed = true;
             }
+            if (importer.avatarSetup != ModelImporterAvatarSetup.CreateFromThisModel)
+            {
+                importer.avatarSetup = ModelImporterAvatarSetup.CreateFromThisModel;
+                changed = true;
+            }
             if (!importer.importAnimation)
             {
                 importer.importAnimation = true;
@@ -47,6 +52,8 @@ namespace MiniMart.EditorTools
 
             // Generic keeps the clip bound to the rig it shipped with: no avatar mapping to get wrong.
             importer.animationType = ModelImporterAnimationType.Generic;
+            // Without an avatar Unity imports the clip but adds no Animator, so nothing can play it.
+            importer.avatarSetup = ModelImporterAvatarSetup.CreateFromThisModel;
             importer.importAnimation = true;
             importer.animationCompression = ModelImporterAnimationCompression.KeyframeReduction;
 

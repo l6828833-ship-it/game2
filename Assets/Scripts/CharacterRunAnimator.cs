@@ -29,7 +29,9 @@ namespace MiniMart
             animator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
 
             graph = PlayableGraph.Create("MiniMart_PlayerRun");
-            graph.SetTimeUpdateMode(DirectorUpdateMode.GameTime);
+            // Manual: the graph only advances when Advance() evaluates it, so the pose is written
+            // exactly once per frame with the time we chose.
+            graph.SetTimeUpdateMode(DirectorUpdateMode.Manual);
 
             clipPlayable = AnimationClipPlayable.Create(graph, clip);
             clipPlayable.SetApplyFootIK(false);
@@ -62,6 +64,7 @@ namespace MiniMart
                 if (clipTime >= clipLength) clipTime %= clipLength;
             }
             clipPlayable.SetTime(clipTime);
+            graph.Evaluate();
         }
 
         private void OnDestroy()
