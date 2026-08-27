@@ -11,22 +11,23 @@ namespace MiniMart
     {
         private static readonly Vector3[] EggSlotsFour =
         {
-            // The user table has a diamond layout: one holder at the front and rear,
-            // then one on each side. These coordinates keep every egg inside a round recess.
-            new Vector3(0f, 0.72f, -0.27f),
-            new Vector3(-0.30f, 0.72f, -0.01f),
-            new Vector3(0.30f, 0.72f, -0.01f),
-            new Vector3(0f, 0.72f, 0.27f)
+            // Four diamond-pattern sockets on the table top surface. The table is 0.95m tall after
+            // scaling, so y = 0.92 sits the eggs right on the surface. Positions are in table-local
+            // space (the root is rotated so open side faces camera).
+            new Vector3(-0.18f, 0.92f, -0.18f),
+            new Vector3(0.18f, 0.92f, -0.18f),
+            new Vector3(-0.18f, 0.92f, 0.18f),
+            new Vector3(0.18f, 0.92f, 0.18f)
         };
 
         private static readonly Vector3[] EggSlotsSix =
         {
-            new Vector3(-0.25f, 0.72f, -0.20f),
-            new Vector3(0f, 0.72f, -0.20f),
-            new Vector3(0.25f, 0.72f, -0.20f),
-            new Vector3(-0.25f, 0.72f, 0.20f),
-            new Vector3(0f, 0.72f, 0.20f),
-            new Vector3(0.25f, 0.72f, 0.20f)
+            new Vector3(-0.22f, 0.92f, -0.16f),
+            new Vector3(0f, 0.92f, -0.16f),
+            new Vector3(0.22f, 0.92f, -0.16f),
+            new Vector3(-0.22f, 0.92f, 0.16f),
+            new Vector3(0f, 0.92f, 0.16f),
+            new Vector3(0.22f, 0.92f, 0.16f)
         };
 
         public ProductKind Product { get; private set; }

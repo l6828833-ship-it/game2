@@ -386,10 +386,8 @@ namespace MiniMart
         {
             GameObject root = new GameObject("Egg_Table");
             root.transform.position = position;
-            // Rotate 180° so the open front of the table faces the isometric camera (which looks
-            // from -Z toward +Z at 55° elevation). Without this the raised back panel blocks the
-            // view of the eggs.
-            root.transform.rotation = Quaternion.Euler(0f, 180f, 0f);
+            // 45° Y so the open front faces the isometric camera (which looks from south-west).
+            root.transform.rotation = Quaternion.Euler(0f, 45f, 0f);
             ShelfUnit table = root.AddComponent<ShelfUnit>();
             table.InitialiseEggTable(4, MiniMartGameManager.Instance.EggTableUpgraded);
             Shelves.Add(table);
