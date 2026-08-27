@@ -279,31 +279,12 @@ namespace MiniMart
                 GameObject hen = Instantiate(prefab);
                 hen.name = name;
                 hen.transform.position = position;
-                // Facing roughly toward the camera so the silhouette reads well from the isometric view.
                 hen.transform.rotation = Quaternion.Euler(0f, 160f, 0f);
-                // Scale to game world: the pack's chicken is about 1 unit tall at scale one.
                 hen.transform.localScale = Vector3.one * ChickenHeight;
-                // Leave the Animator on its idle state, which the controller defaults to.
                 return;
             }
 
             // Fallback: the FarmAnimals vertex colour chicken or a primitive.
-        private void BuildChicken(Vector3 position, string name)
-        {
-            // The ithappy Animals_FREE chicken comes as a prefab with its own AnimatorController.
-            // Instantiating it and leaving the Animator running gives us the idle animation for free.
-            GameObject prefab = Resources.Load<GameObject>(ModelKit.ChickenPrefab);
-            if (prefab != null)
-            {
-                GameObject hen = Instantiate(prefab);
-                hen.name = name;
-                hen.transform.position = position;
-                hen.transform.rotation = Quaternion.Euler(0f, 160f, 0f);
-                hen.transform.localScale = Vector3.one * ChickenHeight;
-                return;
-            }
-
-            // Fallback
             GameObject root = new GameObject(name);
             root.transform.position = position;
             Transform body = ModelKit.SpawnProp(root.transform, ModelKit.ChickenModel,
