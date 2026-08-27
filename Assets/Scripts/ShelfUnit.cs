@@ -159,13 +159,16 @@ namespace MiniMart
         /// </summary>
         private Transform SpawnUserEggTable()
         {
-            // Prefer the table converted from the user's model.glb. The older table is only a
-            // fallback if the new asset has not imported yet.
-            GameObject asset = Resources.Load<GameObject>("Props/UserEggTable4");
-            if (asset == null) asset = Resources.Load<GameObject>("Props/EggTable4");
-            if (asset == null) return null;
+            // This versioned resource name prevents Unity from resolving an old similarly named
+            // table asset. Do not silently fall back: a missing model should be obvious in Console.
+            GameObject asset = Resources.Load<GameObject>("Props/EggTableStoreV2");
+            if (asset == null)
+            {
+                Debug.LogError("EggTableStoreV2.fbx is missing from Assets/Resources/Props.");
+                return null;
+            }
 
-            GameObject pivot = new GameObject("Egg_Table_4_Recesses");
+            GameObject pivot = new GameObject("Egg_Table_4_Recesses_V2");
             pivot.transform.SetParent(transform, false);
             GameObject model = Instantiate(asset, pivot.transform);
             model.name = "Mesh";
