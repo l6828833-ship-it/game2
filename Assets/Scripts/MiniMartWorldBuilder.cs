@@ -271,34 +271,48 @@ namespace MiniMart
 
         private void BuildChicken(Vector3 position, string name)
         {
-            GameObject root = new GameObject(name);
-            root.transform.position = position;
-
-            // The uploaded low-poly chicken is Z up. A saturated cream-gold material makes it
-            // visible from the isometric camera, with a red comb accent matching the reference.
-            Transform body = ModelKit.SpawnProp(root.transform, "Props/FarmChicken",
-                MaterialFor("NestChickenCream", new Color(1f, 0.72f, 0.22f)), ChickenHeight, 0, ModelKit.ZUpFix);
-            if (body == null)
+            // The ithappy Animals_FREE chicken comes as a prefab with its own AnimatorController.
+            // Instantiating it and leaving the Animator running gives us the idle animation for free.
+            GameObject prefab = Resources.Load<GameObject>(ModelKit.ChickenPrefab);
+            if (prefab != null)
             {
-                // No imported hen: fall back to the primitive bird so the coop is not empty.
-                BuildToyChicken(position, name);
-                Destroy(root);
+                GameObject hen = Instantiate(prefab);
+                hen.name = name;
+                hen.transform.position = position;
+                // Facing roughly toward the camera so the silhouette reads well from the isometric view.
+                hen.transform.rotation = Quaternion.Euler(0f, 160f, 0f);
+                // Scale to game world: the pack's chicken is about 1 unit tall at scale one.
+                hen.transform.localScale = Vector3.one * ChickenHeight;
+                // Leave the Animator on its idle state, which the controller defaults to.
                 return;
             }
 
-            body.name = "Nest_Chicken_Body";
-            AddChickenComb(root.transform);
-            // No RoamingAnimal is attached: this chicken stays standing on the nest rim.
-        }
-
-        private void AddChickenComb(Transform chicken)
+            // Fallback: the FarmAnimals vertex colour chicken or a primitive.
+        private void BuildChicken(Vector3 position, string name)
         {
-            // A simple, readable red comb supplies the key colour accent without modifying the
-            // uploaded mesh. It is parented to the stationary chicken, so it cannot drift away.
-            GameObject comb = CreateDecor(PrimitiveType.Cube, "Nest_Chicken_Red_Comb",
-                chicken.position + new Vector3(0f, ChickenHeight * 0.96f, 0.02f),
-                new Vector3(0.18f, 0.18f, 0.10f), MaterialFor("NestChickenComb", new Color(0.88f, 0.10f, 0.08f)), chicken);
-            comb.transform.localRotation = Quaternion.Euler(0f, 0f, 8f);
+            // The ithappy Animals_FREE chicken comes as a prefab with its own AnimatorController.
+            // Instantiating it and leaving the Animator running gives us the idle animation for free.
+            GameObject prefab = Resources.Load<GameObject>(ModelKit.ChickenPrefab);
+            if (prefab != null)
+            {
+                GameObject hen = Instantiate(prefab);
+                hen.name = name;
+                hen.transform.position = position;
+                hen.transform.rotation = Quaternion.Euler(0f, 160f, 0f);
+                hen.transform.localScale = Vector3.one * ChickenHeight;
+                return;
+            }
+
+            // Fallback
+            GameObject root = new GameObject(name);
+            root.transform.position = position;
+            Transform body = ModelKit.SpawnProp(root.transform, ModelKit.ChickenModel,
+                VertexColorMaterial("Hen", new Color(0.96f, 0.93f, 0.86f)), ChickenHeight, 0, Vector3.zero);
+            if (body == null)
+            {
+                BuildToyChicken(position, name);
+                Destroy(root);
+            }
         }
 
         private void BuildToyChicken(Vector3 position, string label)
