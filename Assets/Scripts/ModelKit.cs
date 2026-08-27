@@ -29,6 +29,8 @@ namespace MiniMart
 
         public const string MoneyModel = "Props/MoneyIcon";
         public const string MoneyTexture = "Props/MoneyIcon_Texture";
+        public const string MoneyDropModel = "Props/MoneyDrop";
+        public const string MoneyHudIcon = "Props/MoneyHudIcon";
 
         public const string FarmPlotModel = "Props/FarmPlot";
 

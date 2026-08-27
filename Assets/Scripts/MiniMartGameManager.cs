@@ -59,7 +59,6 @@ namespace MiniMart
             Sfx = MiniMartAudio.Create(transform);
             BuildWorld();
             UI = MiniMartUI.Create(this);
-            BuildHudMoneyIcon();
             Phase = DayPhase.Open;
             spawnTimer = 3f;
             UI.SetNotification("Day " + save.day + ": harvest on the farm, stock the shelves, keep the queue moving.", 5.5f);
@@ -264,30 +263,6 @@ namespace MiniMart
         /// Instead, we put the model in world space well above the play area, on the default layer
         /// so the main camera's depth sort still works, and let it spin. The isometric camera at
         /// y = 20 looks down at 55°, so anything above y = 40 is never in view for gameplay but
-        /// stays in the frustum. We parent it to the camera so it stays in the corner.
-        /// </summary>
-        private void BuildHudMoneyIcon()
-        {
-            Camera cam = Camera.main;
-            if (cam == null) return;
-
-            Transform icon = ModelKit.SpawnProp(cam.transform, ModelKit.MoneyModel,
-                TexturedMaterial("MoneyIcon", ModelKit.MoneyTexture), 0.7f, 0, Vector3.zero);
-            if (icon == null)
-            {
-                // Fallback: a yellow sphere.
-                GameObject sphere = CreateDecor(PrimitiveType.Sphere, "HUD_Money", cam.transform.position,
-                    new Vector3(0.4f, 0.4f, 0.4f), MaterialFor("CoinGold", new Color(1f, 0.84f, 0.12f)), cam.transform);
-                sphere.transform.localPosition = new Vector3(-5.8f, 3.8f, 12f);
-                icon = sphere.transform;
-            }
-            else
-            {
-                icon.localPosition = new Vector3(-5.8f, 3.8f, 12f);
-            }
-            icon.name = "HUD_Money_Icon";
-            icon.gameObject.AddComponent<SpinY>();
-        }
         private void SpawnMoneyDrop(int amount)
         {
             if (Checkout == null) return;
@@ -295,8 +270,8 @@ namespace MiniMart
             GameObject root = new GameObject("MoneyDrop_$" + amount);
             root.transform.position = spot;
 
-            Transform model = ModelKit.SpawnProp(root.transform, ModelKit.MoneyModel,
-                TexturedMaterial("MoneyIcon", ModelKit.MoneyTexture), 0.28f, 0, Vector3.zero);
+            Transform model = ModelKit.SpawnProp(root.transform, ModelKit.MoneyDropModel,
+                MaterialFor("MoneyDropGreen", new Color(0.45f, 0.78f, 0.22f)), 0.28f, 0, Vector3.zero);
             if (model == null)
             {
                 // Fallback: a yellow sphere if the model is missing.
