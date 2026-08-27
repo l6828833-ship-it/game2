@@ -11,20 +11,20 @@ namespace MiniMart
     {
         private static readonly Vector3[] EggSlotsFour =
         {
-            new Vector3(-0.42f, 0.72f, -0.24f),
-            new Vector3(0.30f, 0.72f, -0.24f),
-            new Vector3(-0.22f, 0.72f, 0.26f),
-            new Vector3(0.42f, 0.72f, 0.24f)
+            new Vector3(-0.23f, 0.72f, -0.18f),
+            new Vector3(0.23f, 0.72f, -0.18f),
+            new Vector3(-0.23f, 0.72f, 0.18f),
+            new Vector3(0.23f, 0.72f, 0.18f)
         };
 
         private static readonly Vector3[] EggSlotsSix =
         {
-            new Vector3(-0.42f, 0.72f, -0.27f),
-            new Vector3(0.10f, 0.72f, -0.30f),
-            new Vector3(0.44f, 0.72f, -0.11f),
-            new Vector3(-0.43f, 0.72f, 0.18f),
-            new Vector3(-0.03f, 0.72f, 0.20f),
-            new Vector3(0.39f, 0.72f, 0.28f)
+            new Vector3(-0.25f, 0.72f, -0.20f),
+            new Vector3(0f, 0.72f, -0.20f),
+            new Vector3(0.25f, 0.72f, -0.20f),
+            new Vector3(-0.25f, 0.72f, 0.20f),
+            new Vector3(0f, 0.72f, 0.20f),
+            new Vector3(0.25f, 0.72f, 0.20f)
         };
 
         public ProductKind Product { get; private set; }

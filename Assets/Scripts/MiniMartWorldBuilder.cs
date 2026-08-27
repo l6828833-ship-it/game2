@@ -386,6 +386,9 @@ namespace MiniMart
         {
             GameObject root = new GameObject("Egg_Table");
             root.transform.position = position;
+            // Turn the whole display around together: the low open socket side faces the store camera,
+            // and the raised board becomes the back of the table instead of hiding the eggs.
+            root.transform.rotation = Quaternion.Euler(0f, 180f, 0f);
             ShelfUnit table = root.AddComponent<ShelfUnit>();
             table.InitialiseEggTable(4, MiniMartGameManager.Instance.EggTableUpgraded);
             Shelves.Add(table);
