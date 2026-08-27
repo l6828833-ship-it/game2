@@ -125,10 +125,12 @@ namespace MiniMart
         {
             MiniMartGameManager game = MiniMartGameManager.Instance;
             Material wood = game.MaterialFor("EggTableWood", new Color(0.58f, 0.34f, 0.16f));
-            string model = eggTableUpgraded ? "Props/EggTable6" : "Props/EggTable4";
-            // Both uploaded egg tables are authored Y-up, unlike the Z-up farm props. Keeping their
-            // native axis makes the tabletop horizontal and lets the egg sockets rest on its surface.
-            tableMesh = ModelKit.SpawnProp(transform, model, wood, 0.95f, 0, Vector3.zero);
+
+            // The normal table is the user's GLB model converted to FBX. Its original material is
+            // deliberately preserved instead of receiving the flat brown paint used by old props.
+            tableMesh = eggTableUpgraded
+                ? ModelKit.SpawnProp(transform, "Props/EggTable6", wood, 0.95f, 0, Vector3.zero)
+                : SpawnUserEggTable();
             if (tableMesh == null)
             {
                 // The store remains playable if a model import has not completed yet.
@@ -138,6 +140,25 @@ namespace MiniMart
                 tableMesh = fallback.transform;
             }
             tableMesh.name = eggTableUpgraded ? "Egg_Table_6_Slots" : "Egg_Table_4_Slots";
+        }
+
+        /// <summary>Spawns the user's textured four-slot table in its native Y-up orientation.</summary>
+        private Transform SpawnUserEggTable()
+        {
+            GameObject asset = Resources.Load<GameObject>("Props/UserEggTable4");
+            if (asset == null) return null;
+
+            GameObject pivot = new GameObject("User_Egg_Table_4_Slots");
+            pivot.transform.SetParent(transform, false);
+            GameObject model = Instantiate(asset, pivot.transform);
+            model.name = "Mesh";
+            model.transform.localPosition = Vector3.zero;
+            model.transform.localRotation = Quaternion.identity;
+            model.transform.localScale = Vector3.one;
+            ModelKit.KeepOneLod(model, 0);
+            ModelKit.SitOnGround(pivot.transform, model.transform, 0.95f);
+            ModelKit.StripColliders(model);
+            return pivot.transform;
         }
 
         /// <summary>Creates each display object once and then shows only the stocked positions.</summary>
