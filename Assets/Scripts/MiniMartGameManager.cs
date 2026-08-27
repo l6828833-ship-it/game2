@@ -59,6 +59,7 @@ namespace MiniMart
             Sfx = MiniMartAudio.Create(transform);
             BuildWorld();
             UI = MiniMartUI.Create(this);
+            BuildHudMoneyIcon();
             Phase = DayPhase.Open;
             spawnTimer = 3f;
             UI.SetNotification("Day " + save.day + ": harvest on the farm, stock the shelves, keep the queue moving.", 5.5f);
@@ -204,6 +205,16 @@ namespace MiniMart
             Save();
         }
 
+        /// <summary>Called when the player walks over a money drop on the counter.</summary>
+        public void CollectMoney(int amount)
+        {
+            if (amount <= 0) return;
+            Money += amount;
+            Sfx.Play(SfxKind.Sale);
+            UI.SetNotification("+$" + amount + " collected!", 1.2f);
+            Save();
+        }
+
         /// <summary>Expands only the egg table from four fixed sockets to six fixed sockets.</summary>
         public bool TryUpgradeEggTable(ShelfUnit table)
         {
@@ -231,15 +242,71 @@ namespace MiniMart
 
             int tip = 0;
             if (save.reputation > 70f && Random.value < (save.reputation - 70f) / 55f) tip = Random.Range(1, 4);
-            AddMoney(value + tip);
+            int total = value + tip;
+
+            // Money lands on the counter as a collectible rather than going straight into the balance.
+            EarnedToday += total;
             ServedToday++;
             save.lifetimeCustomers++;
             AdjustReputation(1.2f);
-            Sfx.Play(SfxKind.Sale);
+            SpawnMoneyDrop(total);
             UI.SetNotification(tip > 0
-                ? "+$" + value + " and a $" + tip + " tip. Happy shopper!"
-                : "+$" + value + "  Thanks, come again!", 1.6f);
+                ? "$" + value + " + $" + tip + " tip on the counter!"
+                : "$" + total + " on the counter!", 1.6f);
             Save();
+        }
+
+        /// <summary>
+        /// Places a small spinning money model in front of the camera, rendered on a layer the
+        /// main camera does not see, with a dedicated camera that draws into the HUD area. This
+        /// approach avoids using RawImage which needs a RenderTexture and is heavier than needed.
+        ///
+        /// Instead, we put the model in world space well above the play area, on the default layer
+        /// so the main camera's depth sort still works, and let it spin. The isometric camera at
+        /// y = 20 looks down at 55°, so anything above y = 40 is never in view for gameplay but
+        /// stays in the frustum. We parent it to the camera so it stays in the corner.
+        /// </summary>
+        private void BuildHudMoneyIcon()
+        {
+            Camera cam = Camera.main;
+            if (cam == null) return;
+
+            Transform icon = ModelKit.SpawnProp(cam.transform, ModelKit.MoneyModel,
+                TexturedMaterial("MoneyIcon", ModelKit.MoneyTexture), 0.7f, 0, Vector3.zero);
+            if (icon == null)
+            {
+                // Fallback: a yellow sphere.
+                GameObject sphere = CreateDecor(PrimitiveType.Sphere, "HUD_Money", cam.transform.position,
+                    new Vector3(0.4f, 0.4f, 0.4f), MaterialFor("CoinGold", new Color(1f, 0.84f, 0.12f)), cam.transform);
+                sphere.transform.localPosition = new Vector3(-5.8f, 3.8f, 12f);
+                icon = sphere.transform;
+            }
+            else
+            {
+                icon.localPosition = new Vector3(-5.8f, 3.8f, 12f);
+            }
+            icon.name = "HUD_Money_Icon";
+            icon.gameObject.AddComponent<SpinY>();
+        }
+        private void SpawnMoneyDrop(int amount)
+        {
+            if (Checkout == null) return;
+            Vector3 spot = Checkout.CounterPosition + new Vector3(Random.Range(-0.6f, 0.6f), 1.5f, Random.Range(-0.3f, 0.3f));
+            GameObject root = new GameObject("MoneyDrop_$" + amount);
+            root.transform.position = spot;
+
+            Transform model = ModelKit.SpawnProp(root.transform, ModelKit.MoneyModel,
+                TexturedMaterial("MoneyIcon", ModelKit.MoneyTexture), 0.28f, 0, Vector3.zero);
+            if (model == null)
+            {
+                // Fallback: a yellow sphere if the model is missing.
+                model = CreateDecor(PrimitiveType.Sphere, "Coin", spot, new Vector3(0.22f, 0.22f, 0.22f),
+                    MaterialFor("CoinGold", new Color(1f, 0.84f, 0.12f)), root.transform).transform;
+                model.localPosition = Vector3.zero;
+            }
+
+            MoneyDrop drop = root.AddComponent<MoneyDrop>();
+            drop.Initialise(amount, model);
         }
 
         /// <summary>A shopper gave up. Costs reputation and shows up in the day summary.</summary>

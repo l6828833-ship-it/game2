@@ -27,6 +27,9 @@ namespace MiniMart
         public const string EggModel = "Items/Egg";
         public const string LegacyEggModel = "Items/FarmEgg";
 
+        public const string MoneyModel = "Props/MoneyIcon";
+        public const string MoneyTexture = "Props/MoneyIcon_Texture";
+
         public const string FarmPlotModel = "Props/FarmPlot";
 
         /// <summary>Free_Trees pack. One shared 8x8 palette texture colours all four.</summary>
