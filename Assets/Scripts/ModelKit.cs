@@ -16,10 +16,15 @@ namespace MiniMart
         public static readonly Vector3 ZUpFix = new Vector3(-90f, 0f, 0f);
 
         public const string NestModel = "Props/Nest";
-        public const string ChickenModel = "Props/Chicken";
+        /// <summary>
+        /// The FarmAnimals hen, not the generated one: that FBX carries no colour at all, so it can
+        /// only ever be a single flat tone. This one keeps its comb and beak in vertex colours.
+        /// </summary>
+        public const string ChickenModel = "Props/ChickenBrown";
         public const string EggModel = "Items/Egg";
         public const string LegacyEggModel = "Items/FarmEgg";
 
+        public const string FarmPlotModel = "Props/FarmPlot";
         public const string CowModel = "Props/CowBlW";
         public const string SheepModel = "Props/SheepWhite";
         public const string PigModel = "Props/Pig";

@@ -44,6 +44,8 @@ namespace MiniMart
         private readonly Dictionary<string, Material> materialCache = new Dictionary<string, Material>();
         private Light sun;
         private Camera sceneCamera;
+        private Shader vertexColorShader;
+        private bool vertexColorShaderChecked;
 
         private void InitialisePalette()
         {
@@ -131,15 +133,14 @@ namespace MiniMart
                 nest.position = nestSpot;
             }
 
+            // The egg rests on the rim so it reads from the camera instead of hiding in the bowl.
             FarmProducer eggs = CreateFarmProducer(nestSpot, ProductKind.Egg, "Eggs", new Color(1f, 0.96f, 0.74f),
-                ModelKit.EggModel, EggHeight, nest != null ? NestHeight * 0.42f : 0.5f, nest == null);
+                ModelKit.EggModel, EggHeight, nest != null ? NestHeight * 0.8f : 0.5f, nest == null);
             eggs.ReadySound = SfxKind.Cluck;
 
-            // Hens potter about in front of the coop, each patch within a step or two of the nest.
-            // Their roam radius keeps them clear of the coop wall at z = -0.58.
-            BuildChicken(new Vector3(-13.55f, 0f, -1.30f), eggs, "Hen_A");
-            BuildChicken(new Vector3(-14.45f, 0f, -1.45f), eggs, "Hen_B");
-            BuildChicken(new Vector3(-12.95f, 0f, -1.65f), eggs, "Hen_C");
+            // One hen, keeping to her nest. She sits just behind it, which from this camera angle
+            // leaves the egg in clear view in front of her.
+            BuildChicken(nestSpot + new Vector3(0.06f, 0f, 0.42f), eggs, "Hen");
         }
 
         /// <summary>
@@ -186,7 +187,8 @@ namespace MiniMart
             GameObject root = new GameObject("Pasture_" + name);
             root.transform.position = home;
 
-            Transform body = ModelKit.SpawnProp(root.transform, model, MaterialFor("Hide_" + name, color),
+            // Vertex colours give the cow its patches and the pig its snout, so no flat paint here.
+            Transform body = ModelKit.SpawnProp(root.transform, model, VertexColorMaterial("Hide_" + name, color),
                 height, 0, Vector3.zero);
             if (body == null)
             {
@@ -210,8 +212,9 @@ namespace MiniMart
             GameObject root = new GameObject(name);
             root.transform.position = position;
 
+            // The FarmAnimals hen is Y up with forward +Z already, and her markings are vertex colours.
             Transform body = ModelKit.SpawnProp(root.transform, ModelKit.ChickenModel,
-                MaterialFor("HenFeathers", new Color(0.96f, 0.93f, 0.86f)), ChickenHeight, 0, ModelKit.ZUpFix);
+                VertexColorMaterial("Hen", new Color(0.96f, 0.93f, 0.86f)), ChickenHeight, 0, Vector3.zero);
             if (body == null)
             {
                 // No imported hen: fall back to the primitive bird so the coop is not empty.
@@ -221,10 +224,9 @@ namespace MiniMart
             }
 
             body.name = "Hen_Body";
-            // A small patch in front of the coop: the roam never reaches the wall at z = -0.58.
-            Rect patch = new Rect(position.x - 0.5f, position.z - 0.5f, 1f, 1f);
-            root.AddComponent<RoamingAnimal>().Initialise(body, patch, Random.Range(0.35f, 0.6f),
-                ChickenHeight * 0.08f, true, nest);
+            // Barely a patch at all: she shifts about on the nest rather than wandering off.
+            Rect patch = new Rect(position.x - 0.16f, position.z - 0.16f, 0.32f, 0.32f);
+            root.AddComponent<RoamingAnimal>().Initialise(body, patch, 0.22f, ChickenHeight * 0.05f, true, nest);
         }
 
         private void BuildToyChicken(Vector3 position, string label)
@@ -407,6 +409,34 @@ namespace MiniMart
             material = new Material(shader) { name = "M_" + name, color = color };
             if (material.HasProperty("_Smoothness")) material.SetFloat("_Smoothness", 0.05f);
             materialCache[name] = material;
+            return material;
+        }
+
+        /// <summary>
+        /// Material that keeps a model's own vertex colours: the farm animals carry their markings
+        /// there rather than in a texture. Falls back to a flat colour if the shader is unavailable,
+        /// so a shader problem costs the markings rather than turning everything magenta.
+        /// </summary>
+        public Material VertexColorMaterial(string name, Color fallback)
+        {
+            string key = "VC_" + name;
+            if (materialCache.TryGetValue(key, out Material cached)) return cached;
+
+            if (vertexColorShader == null && !vertexColorShaderChecked)
+            {
+                vertexColorShaderChecked = true;
+                vertexColorShader = Resources.Load<Shader>("Shaders/VertexColorLit");
+                if (vertexColorShader != null && !vertexColorShader.isSupported)
+                {
+                    Debug.LogWarning("MiniMart/VertexColorLit did not compile; animals fall back to flat colours.");
+                    vertexColorShader = null;
+                }
+            }
+            if (vertexColorShader == null) return MaterialFor(name, fallback);
+
+            Material material = new Material(vertexColorShader) { name = "M_" + key };
+            if (material.HasProperty("_Tint")) material.SetColor("_Tint", Color.white);
+            materialCache[key] = material;
             return material;
         }
 
