@@ -11,17 +11,28 @@ namespace MiniMart.EditorTools
     /// </summary>
     public class MixamoModelPostprocessor : AssetPostprocessor
     {
-        private const string AnimatedPlayerPath = "Assets/Resources/Characters/FarmPlayerRun";
-        private const string AnimatedPlayerAsset = AnimatedPlayerPath + ".fbx";
+        private const string AnimatedPlayerPrefix = "Assets/Resources/Characters/FarmPlayer";
+
+        private static readonly string[] AnimatedPlayerAssets =
+        {
+            AnimatedPlayerPrefix + "Run.fbx",
+            AnimatedPlayerPrefix + "Idle.fbx",
+            AnimatedPlayerPrefix + "CarryIdle.fbx"
+        };
 
         /// <summary>
         /// Safety net for the case where the model is imported before this script has compiled:
         /// on the next domain reload the rig is checked and reimported once if it is wrong.
         /// </summary>
         [InitializeOnLoadMethod]
-        private static void EnsureAnimatedPlayerRig()
+        private static void EnsureAnimatedPlayerRigs()
         {
-            if (!(AssetImporter.GetAtPath(AnimatedPlayerAsset) is ModelImporter importer)) return;
+            for (int i = 0; i < AnimatedPlayerAssets.Length; i++) EnsureAnimatedRig(AnimatedPlayerAssets[i]);
+        }
+
+        private static void EnsureAnimatedRig(string assetPath)
+        {
+            if (!(AssetImporter.GetAtPath(assetPath) is ModelImporter importer)) return;
 
             bool changed = false;
             if (importer.animationType != ModelImporterAnimationType.Generic)
@@ -42,12 +53,12 @@ namespace MiniMart.EditorTools
             if (!changed) return;
 
             importer.SaveAndReimport();
-            Debug.Log("Reimported " + AnimatedPlayerAsset + " as a generic animated rig for the mini mart player.");
+            Debug.Log("Reimported " + assetPath + " as a generic animated rig for the mini mart player.");
         }
 
         private void OnPreprocessModel()
         {
-            if (!assetPath.StartsWith(AnimatedPlayerPath)) return;
+            if (!assetPath.StartsWith(AnimatedPlayerPrefix) || !assetPath.EndsWith(".fbx")) return;
             if (!(assetImporter is ModelImporter importer) || !importer.importSettingsMissing) return;
 
             // Generic keeps the clip bound to the rig it shipped with: no avatar mapping to get wrong.

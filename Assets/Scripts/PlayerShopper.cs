@@ -10,6 +10,8 @@ namespace MiniMart
         private enum TargetKind { None, Harvest, Shelf, Upgrade, Checkout }
 
         private const string AnimatedModelPath = "Characters/FarmPlayerRun";
+        private const string IdleClipPath = "Characters/FarmPlayerIdle";
+        private const string CarryIdleClipPath = "Characters/FarmPlayerCarryIdle";
         private const string StaticModelPath = "Characters/FarmPlayer";
 
         /// <summary>Roughly the capsule height, so the body reads at the right size next to the shelves.</summary>
@@ -23,7 +25,7 @@ namespace MiniMart
         private Transform rightArm;
         private Transform carryVisual;
         private ProductKind? carryVisualKind;
-        private CharacterRunAnimator runAnimator;
+        private CharacterLocomotion locomotion;
 
         private ProductKind? carrying;
         private int carryAmount;
@@ -94,14 +96,18 @@ namespace MiniMart
             model.transform.localRotation = Quaternion.identity;
             model.transform.localScale = Vector3.one;
 
-            AnimationClip clip = LoadLongestClip(AnimatedModelPath);
-            if (clip == null)
+            AnimationClip run = LoadLongestClip(AnimatedModelPath);
+            if (run == null)
             {
                 Debug.LogWarning(AnimatedModelPath + " imported without an animation clip. Tick Import "
                     + "Animation on the model and press Play again.");
                 Destroy(model);
                 return false;
             }
+
+            // Every clip comes off the same Mixamo rig, so the idles play on this hierarchy too.
+            AnimationClip idle = LoadLongestClip(IdleClipPath);
+            AnimationClip carryIdle = LoadLongestClip(CarryIdleClipPath);
 
             // An FBX imported with Avatar Setup set to "No Avatar" carries the clip but no Animator.
             // Generic clips bind by transform path, so adding one on the model root is enough.
@@ -113,19 +119,31 @@ namespace MiniMart
             Paint(model, material);
             StripColliders(model);
 
-            runAnimator = gameObject.AddComponent<CharacterRunAnimator>();
-            if (runAnimator.Setup(animator, clip))
+            locomotion = gameObject.AddComponent<CharacterLocomotion>();
+            if (locomotion.Setup(animator, run, idle, carryIdle, FindPelvis(model.transform)))
             {
-                Debug.Log("Player rig ready: '" + clip.name + "' " + clip.length.ToString("0.00")
-                    + "s, body scaled x" + fitScale.ToString("0.000"));
+                Debug.Log("Player rig ready: run '" + run.name + "' " + run.length.ToString("0.00") + "s"
+                    + ", idle " + (idle != null ? idle.length.ToString("0.00") + "s" : "missing")
+                    + ", carry idle " + (carryIdle != null ? carryIdle.length.ToString("0.00") + "s" : "missing")
+                    + ", body scaled x" + fitScale.ToString("0.000"));
                 return true;
             }
 
-            Debug.LogWarning("Could not start the run clip '" + clip.name + "' on " + AnimatedModelPath + ".");
-            Destroy(runAnimator);
-            runAnimator = null;
+            Debug.LogWarning("Could not start the run clip '" + run.name + "' on " + AnimatedModelPath + ".");
+            Destroy(locomotion);
+            locomotion = null;
             Destroy(model);
             return false;
+        }
+
+        /// <summary>The bone the clips translate. Mixamo calls it mixamorig:Hips.</summary>
+        private static Transform FindPelvis(Transform modelRoot)
+        {
+            foreach (Transform bone in modelRoot.GetComponentsInChildren<Transform>(true))
+            {
+                if (bone.name.IndexOf("Hips", System.StringComparison.OrdinalIgnoreCase) >= 0) return bone;
+            }
+            return null;
         }
 
         /// <summary>Mixamo exports five stacked LOD skins. Keep one, drop the rest and the group.</summary>
@@ -302,18 +320,18 @@ namespace MiniMart
         }
 
         /// <summary>
-        /// Runs the Mixamo cycle at a rate tied to real ground speed, so the stride stays in step
-        /// with the movement instead of sliding.
+        /// Feeds real ground speed to the locomotion blend, so the stride keeps pace with the
+        /// movement and standing still settles into an idle instead of freezing mid stride.
         /// </summary>
         private void AnimateBody()
         {
-            if (runAnimator == null || !runAnimator.IsReady) return;
+            if (locomotion == null || !locomotion.IsReady) return;
 
             float groundSpeed = new Vector3(moveVelocity.x, 0f, moveVelocity.z).magnitude;
-            float rate = groundSpeed <= 0.15f
+            float rate = groundSpeed <= 0.2f
                 ? 0f
-                : Mathf.Clamp(groundSpeed / GameConfig.PlayerWalkSpeed, 0.45f, 2f);
-            runAnimator.Advance(rate, Time.deltaTime);
+                : Mathf.Clamp(groundSpeed / GameConfig.PlayerWalkSpeed, 0.5f, 2f);
+            locomotion.Advance(rate, carrying != null, Time.deltaTime);
         }
 
         private void AnimateWalk(float blend)
