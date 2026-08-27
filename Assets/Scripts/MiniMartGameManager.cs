@@ -262,11 +262,20 @@ namespace MiniMart
         ///
         /// Instead, we put the model in world space well above the play area, on the default layer
         /// so the main camera's depth sort still works, and let it spin. The isometric camera at
-        /// y = 20 looks down at 55°, so anything above y = 40 is never in view for gameplay but
+        private int dropSerial;
+
         private void SpawnMoneyDrop(int amount)
         {
             if (Checkout == null) return;
-            Vector3 spot = Checkout.CounterPosition + new Vector3(Random.Range(-0.6f, 0.6f), 1.5f, Random.Range(-0.3f, 0.3f));
+
+            // Lay drops out in a tidy row along the counter top so they don't pile up.
+            int slot = dropSerial++;
+            int col = slot % 5;
+            int row = (slot / 5) % 2;
+            float x = -0.8f + col * 0.4f;
+            float z = -0.15f + row * 0.35f;
+            Vector3 spot = Checkout.transform.position + new Vector3(x, 1.48f, z);
+
             GameObject root = new GameObject("MoneyDrop_$" + amount);
             root.transform.position = spot;
 
