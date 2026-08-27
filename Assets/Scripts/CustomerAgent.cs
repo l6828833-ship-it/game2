@@ -222,24 +222,26 @@ namespace MiniMart
         /// The marker is a call for service, not a mood meter: it shows up red only when this shopper
         /// is at the till and nobody is behind the counter, and goes away the moment you arrive.
         /// </summary>
+        /// <summary>
+        /// The red marker only appears when this shopper is about to give up and leave (below 20%
+        /// patience). It no longer shows for every waiting customer at an unmanned till.
+        /// </summary>
         private void UpdateMood()
         {
             if (moodLight == null) return;
-            MiniMartGameManager game = MiniMartGameManager.Instance;
 
-            bool waiting = state == CustomerState.Queuing
-                && game.Checkout != null
-                && !game.Checkout.IsAttended;
+            bool almostGone = PatienceRatio < 0.2f
+                && (state == CustomerState.Queuing || state == CustomerState.GoingToShelf);
 
-            if (moodLight.gameObject.activeSelf != waiting) moodLight.gameObject.SetActive(waiting);
-            if (!waiting) return;
+            if (moodLight.gameObject.activeSelf != almostGone) moodLight.gameObject.SetActive(almostGone);
+            if (!almostGone) return;
 
-            // Pulses faster as their patience runs down.
-            float urgency = Mathf.Lerp(9f, 3f, PatienceRatio);
-            float pulse = 1f + Mathf.Sin(Time.time * urgency) * 0.18f;
-            moodLight.localPosition = new Vector3(0f, bodyHeight + 0.24f + Mathf.Sin(Time.time * urgency) * 0.03f, 0f);
+            // Pulses faster as they get closer to walking out.
+            float urgency = Mathf.Lerp(5f, 12f, 1f - PatienceRatio / 0.2f);
+            float pulse = 1f + Mathf.Sin(Time.time * urgency) * 0.22f;
+            moodLight.localPosition = new Vector3(0f, bodyHeight + 0.24f + Mathf.Sin(Time.time * urgency) * 0.04f, 0f);
             moodLight.localScale = moodBaseScale * pulse;
-            if (moodRenderer != null) moodRenderer.sharedMaterial = WaitingMaterial(game);
+            if (moodRenderer != null) moodRenderer.sharedMaterial = WaitingMaterial(MiniMartGameManager.Instance);
         }
 
         private static Material WaitingMaterial(MiniMartGameManager game)

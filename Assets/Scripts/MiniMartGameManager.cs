@@ -204,6 +204,16 @@ namespace MiniMart
             Save();
         }
 
+        /// <summary>Called when the player walks over a money drop on the counter.</summary>
+        public void CollectMoney(int amount)
+        {
+            if (amount <= 0) return;
+            Money += amount;
+            Sfx.Play(SfxKind.Sale);
+            UI.SetNotification("+$" + amount + " collected!", 1.2f);
+            Save();
+        }
+
         /// <summary>Expands only the egg table from four fixed sockets to six fixed sockets.</summary>
         public bool TryUpgradeEggTable(ShelfUnit table)
         {
@@ -231,15 +241,56 @@ namespace MiniMart
 
             int tip = 0;
             if (save.reputation > 70f && Random.value < (save.reputation - 70f) / 55f) tip = Random.Range(1, 4);
-            AddMoney(value + tip);
+            int total = value + tip;
+
+            // Money lands on the counter as a collectible rather than going straight into the balance.
+            EarnedToday += total;
             ServedToday++;
             save.lifetimeCustomers++;
             AdjustReputation(1.2f);
-            Sfx.Play(SfxKind.Sale);
+            SpawnMoneyDrop(total);
             UI.SetNotification(tip > 0
-                ? "+$" + value + " and a $" + tip + " tip. Happy shopper!"
-                : "+$" + value + "  Thanks, come again!", 1.6f);
+                ? "$" + value + " + $" + tip + " tip on the counter!"
+                : "$" + total + " on the counter!", 1.6f);
             Save();
+        }
+
+        /// <summary>
+        /// Places a small spinning money model in front of the camera, rendered on a layer the
+        /// main camera does not see, with a dedicated camera that draws into the HUD area. This
+        /// approach avoids using RawImage which needs a RenderTexture and is heavier than needed.
+        ///
+        /// Instead, we put the model in world space well above the play area, on the default layer
+        /// so the main camera's depth sort still works, and let it spin. The isometric camera at
+        private int dropSerial;
+
+        private void SpawnMoneyDrop(int amount)
+        {
+            if (Checkout == null) return;
+
+            // Lay drops out in a tidy row along the counter top so they don't pile up.
+            int slot = dropSerial++;
+            int col = slot % 5;
+            int row = (slot / 5) % 2;
+            float x = -0.8f + col * 0.4f;
+            float z = -0.15f + row * 0.35f;
+            Vector3 spot = Checkout.transform.position + new Vector3(x, 1.48f, z);
+
+            GameObject root = new GameObject("MoneyDrop_$" + amount);
+            root.transform.position = spot;
+
+            Transform model = ModelKit.SpawnProp(root.transform, ModelKit.MoneyDropModel,
+                MaterialFor("MoneyDropGreen", new Color(0.45f, 0.78f, 0.22f)), 0.28f, 0, Vector3.zero);
+            if (model == null)
+            {
+                // Fallback: a yellow sphere if the model is missing.
+                model = CreateDecor(PrimitiveType.Sphere, "Coin", spot, new Vector3(0.22f, 0.22f, 0.22f),
+                    MaterialFor("CoinGold", new Color(1f, 0.84f, 0.12f)), root.transform).transform;
+                model.localPosition = Vector3.zero;
+            }
+
+            MoneyDrop drop = root.AddComponent<MoneyDrop>();
+            drop.Initialise(amount, model);
         }
 
         /// <summary>A shopper gave up. Costs reputation and shows up in the day summary.</summary>

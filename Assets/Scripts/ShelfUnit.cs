@@ -9,24 +9,32 @@ namespace MiniMart
     /// </summary>
     public class ShelfUnit : MonoBehaviour
     {
+        /// <summary>Overall table height. The plate the eggs rest on sits lower, see EggPlateY.</summary>
+        private const float EggTableHeight = 1.35f;
+
+        /// <summary>
+        /// Height of the table plate. The model's back panel rises above the plate, so the plate is
+        /// around three quarters of the total height rather than at the very top.
+        /// </summary>
+        private const float EggPlateY = EggTableHeight * 0.74f;
+
         private static readonly Vector3[] EggSlotsFour =
         {
-            // The user table has a diamond layout: one holder at the front and rear,
-            // then one on each side. These coordinates keep every egg inside a round recess.
-            new Vector3(0f, 0.72f, -0.27f),
-            new Vector3(-0.30f, 0.72f, -0.01f),
-            new Vector3(0.30f, 0.72f, -0.01f),
-            new Vector3(0f, 0.72f, 0.27f)
+            // The requested user table has four holders in a diamond: front, left, right, rear.
+            new Vector3(0f, EggPlateY, -0.25f),
+            new Vector3(-0.27f, EggPlateY, 0f),
+            new Vector3(0.27f, EggPlateY, 0f),
+            new Vector3(0f, EggPlateY, 0.25f)
         };
 
         private static readonly Vector3[] EggSlotsSix =
         {
-            new Vector3(-0.25f, 0.72f, -0.20f),
-            new Vector3(0f, 0.72f, -0.20f),
-            new Vector3(0.25f, 0.72f, -0.20f),
-            new Vector3(-0.25f, 0.72f, 0.20f),
-            new Vector3(0f, 0.72f, 0.20f),
-            new Vector3(0.25f, 0.72f, 0.20f)
+            new Vector3(-0.22f, EggPlateY, -0.15f),
+            new Vector3(0f, EggPlateY, -0.15f),
+            new Vector3(0.22f, EggPlateY, -0.15f),
+            new Vector3(-0.22f, EggPlateY, 0.15f),
+            new Vector3(0f, EggPlateY, 0.15f),
+            new Vector3(0.22f, EggPlateY, 0.15f)
         };
 
         public ProductKind Product { get; private set; }
@@ -144,13 +152,20 @@ namespace MiniMart
             tableMesh.name = eggTableUpgraded ? "Egg_Table_6_Slots" : "Egg_Table_4_Slots";
         }
 
-        /// <summary>Spawns the user's textured four-slot table in its native Y-up orientation.</summary>
+        /// <summary>
+        /// Spawns the supplied four-recess egg table. Vertex distribution confirms the model is Y up
+        /// (half its vertices sit in the top fifth: the table plate and the back panel, with sparse
+        /// legs below), so it needs no axis correction.
+        /// </summary>
         private Transform SpawnUserEggTable()
         {
+            // Prefer the table converted from the user's model.glb. The older table is only a
+            // fallback if the new asset has not imported yet.
             GameObject asset = Resources.Load<GameObject>("Props/UserEggTable4");
+            if (asset == null) asset = Resources.Load<GameObject>("Props/EggTable4");
             if (asset == null) return null;
 
-            GameObject pivot = new GameObject("User_Egg_Table_4_Slots");
+            GameObject pivot = new GameObject("Egg_Table_4_Recesses");
             pivot.transform.SetParent(transform, false);
             GameObject model = Instantiate(asset, pivot.transform);
             model.name = "Mesh";
@@ -158,7 +173,7 @@ namespace MiniMart
             model.transform.localRotation = Quaternion.identity;
             model.transform.localScale = Vector3.one;
             ModelKit.KeepOneLod(model, 0);
-            ModelKit.SitOnGround(pivot.transform, model.transform, 0.95f);
+            ModelKit.SitOnGround(pivot.transform, model.transform, EggTableHeight);
             ModelKit.StripColliders(model);
             return pivot.transform;
         }

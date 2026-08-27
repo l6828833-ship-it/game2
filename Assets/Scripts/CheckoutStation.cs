@@ -12,8 +12,8 @@ namespace MiniMart
         /// <summary>How close the shopkeeper has to be to count as working the till.</summary>
         private const float ServeRange = 2.6f;
 
-        /// <summary>Where the shopper being served stands: in front of the counter, not inside it.</summary>
-        public Vector3 CounterPosition => transform.position + new Vector3(0f, 0f, -1.05f);
+        /// <summary>Where shoppers stand to be served: well in front of the counter, not inside it.</summary>
+        public Vector3 CounterPosition => transform.position + new Vector3(0f, 0f, -1.8f);
         public int QueueLength => queue.Count;
 
         /// <summary>True while the player is stood at the counter. Nothing gets sold otherwise.</summary>
@@ -85,9 +85,9 @@ namespace MiniMart
             if (queue.Remove(customer) && queue.Count == 0) scanTimer = 0f;
         }
 
-        /// <summary>The queue trails west from the counter along the front lane.</summary>
+        /// <summary>The queue trails west from the serve spot, with a wider gap between each shopper.</summary>
         public Vector3 QueueSpot(int index) => index == 0
             ? CounterPosition
-            : transform.position + new Vector3(-1.15f - (index - 1) * 0.85f, 0f, -1.05f);
+            : transform.position + new Vector3(-1.2f - (index - 1) * 0.95f, 0f, -1.8f);
     }
 }

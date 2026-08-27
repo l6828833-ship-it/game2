@@ -67,7 +67,26 @@ namespace MiniMart
 
             RectTransform status = Panel("Status_Card", transform, new Vector2(0f, 1f), new Vector2(0f, 1f),
                 new Vector2(20f, -20f), new Vector2(330f, 152f), PanelColor);
-            moneyText = Label("Money", status, new Vector2(18f, -12f), new Vector2(294f, 46f), 38, TextAnchor.UpperLeft, Ink, FontStyle.Bold);
+
+            // Money icon from the supplied PNG, sitting to the left of the dollar amount.
+            Sprite moneySprite = Resources.Load<Sprite>(ModelKit.MoneyHudIcon);
+            if (moneySprite != null)
+            {
+                GameObject iconGo = new GameObject("Money_Icon", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+                iconGo.transform.SetParent(status, false);
+                Image iconImg = iconGo.GetComponent<Image>();
+                iconImg.sprite = moneySprite;
+                iconImg.preserveAspect = true;
+                iconImg.raycastTarget = false;
+                RectTransform iconRect = iconGo.GetComponent<RectTransform>();
+                iconRect.anchorMin = new Vector2(0f, 1f);
+                iconRect.anchorMax = new Vector2(0f, 1f);
+                iconRect.pivot = new Vector2(0f, 1f);
+                iconRect.anchoredPosition = new Vector2(12f, -8f);
+                iconRect.sizeDelta = new Vector2(42f, 42f);
+            }
+
+            moneyText = Label("Money", status, new Vector2(58f, -12f), new Vector2(254f, 46f), 38, TextAnchor.UpperLeft, Ink, FontStyle.Bold);
             dayText = Label("Day", status, new Vector2(18f, -60f), new Vector2(294f, 24f), 19, TextAnchor.UpperLeft, Muted, FontStyle.Normal);
             clockFill = Track(status, new Vector2(18f, -88f), new Vector2(294f, 8f), new Color(1f, 0.83f, 0.32f));
             Label("Rep_Caption", status, new Vector2(18f, -102f), new Vector2(294f, 22f), 16, TextAnchor.UpperLeft, Muted, FontStyle.Normal)
