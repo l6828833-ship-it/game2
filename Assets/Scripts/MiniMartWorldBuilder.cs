@@ -17,6 +17,26 @@ namespace MiniMart
         /// <summary>Tilled plot thickness. Two of them side by side make up one crop bed.</summary>
         private const float PlotHeight = 0.55f;
 
+        // Ground plane. A Unity plane is ten units across at scale one, hence the 0.2 when the
+        // extent below is a half width.
+        private const float GroundCenterX = -2f;
+        private const float GroundCenterZ = -2f;
+        private const float GroundExtent = 62f;
+
+        /// <summary>
+        /// Nothing is planted inside this box. It covers the farm, the shop, the paddock and the
+        /// paths between them with room to spare, so no tree can end up somewhere the player walks.
+        /// </summary>
+        private static readonly Rect PlayArea = Rect.MinMaxRect(-23f, -15.5f, 19f, 10.5f);
+
+        /// <summary>How far past the play area trees are scattered. Beyond this the camera never sees them.</summary>
+        private const float WoodsDepth = 24f;
+
+        private const int TreeCount = 78;
+
+        /// <summary>Trunk heights in metres, per species, matching the model order in ModelKit.</summary>
+        private static readonly float[] TreeHeights = { 5.4f, 6.2f, 5.8f, 5.0f };
+
         /// <summary>
         /// Paddock bounds. The north rail sits at z = -7.2, clear of the store floor which starts at
         /// z = -6, so the fenced field never overlaps the shop or the farm.
@@ -61,10 +81,13 @@ namespace MiniMart
             RenderSettings.fogColor = new Color(0.72f, 0.88f, 0.94f);
             RenderSettings.fogDensity = 0.008f;
 
-            CreatePrimitive(PrimitiveType.Plane, "Pastel Grass", Vector3.zero, new Vector3(5.5f, 1f, 5.5f), MaterialFor("Grass", new Color(0.47f, 0.82f, 0.38f)));
+            // Countryside well past the fences, so the map does not end in mid air at the edges.
+            CreatePrimitive(PrimitiveType.Plane, "Pastel Grass", new Vector3(GroundCenterX, 0f, GroundCenterZ),
+                new Vector3(GroundExtent * 0.2f, 1f, GroundExtent * 0.2f), MaterialFor("Grass", new Color(0.47f, 0.82f, 0.38f)));
             CreatePrimitive(PrimitiveType.Cube, "Market Floor", new Vector3(3f, 0.04f, 1f), new Vector3(26f, 0.12f, 14f), MaterialFor("Floor", new Color(0.96f, 0.82f, 0.57f)));
             BuildFarm();
             BuildPasture();
+            BuildWoods();
             BuildStoreShell();
             BuildProps();
             BuildShelves();
@@ -160,6 +183,43 @@ namespace MiniMart
             // One hen, keeping to her nest. She sits just behind it, which from this camera angle
             // leaves the egg in clear view in front of her.
             BuildChicken(nestSpot + new Vector3(0.06f, 0f, 0.42f), eggs, "Hen");
+        }
+
+        /// <summary>
+        /// Scatters the tree pack in a band around the play area. Sampling is seeded so the woods
+        /// come out the same every run rather than rearranging themselves each time you press Play,
+        /// and every candidate inside the play area is thrown away, so nothing lands on the farm,
+        /// the shop floor, the paddock or the paths between them.
+        /// </summary>
+        private void BuildWoods()
+        {
+            Material bark = TexturedMaterial("Tree", ModelKit.TreeTexture);
+            Rect outer = Rect.MinMaxRect(
+                PlayArea.xMin - WoodsDepth, PlayArea.yMin - WoodsDepth,
+                PlayArea.xMax + WoodsDepth, PlayArea.yMax + WoodsDepth);
+
+            Random.State callerState = Random.state;
+            Random.InitState(20260826);
+
+            Transform woods = new GameObject("Woods").transform;
+            int planted = 0;
+            for (int attempt = 0; attempt < TreeCount * 12 && planted < TreeCount; attempt++)
+            {
+                Vector3 spot = new Vector3(Random.Range(outer.xMin, outer.xMax), 0f, Random.Range(outer.yMin, outer.yMax));
+                if (PlayArea.Contains(new Vector2(spot.x, spot.z))) continue;
+
+                int species = Random.Range(0, ModelKit.TreeModels.Length);
+                float height = TreeHeights[species % TreeHeights.Length] * Random.Range(0.72f, 1.25f);
+                Transform tree = ModelKit.SpawnProp(woods, ModelKit.TreeModels[species], bark, height, 0, Vector3.zero);
+                if (tree == null) break; // pack missing, no point trying the rest
+
+                tree.name = "Tree_" + planted;
+                tree.position = spot;
+                tree.rotation = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
+                planted++;
+            }
+
+            Random.state = callerState;
         }
 
         /// <summary>
@@ -402,6 +462,24 @@ namespace MiniMart
             material = new Material(shader) { name = "M_" + name, color = color };
             if (material.HasProperty("_Smoothness")) material.SetFloat("_Smoothness", 0.05f);
             materialCache[name] = material;
+            return material;
+        }
+
+        /// <summary>
+        /// Material that samples a model's own texture. The tree pack ships a built in shader that
+        /// URP cannot render, so its palette texture gets rebound to a URP material instead.
+        /// </summary>
+        public Material TexturedMaterial(string name, string texturePath)
+        {
+            string key = "Tex_" + name;
+            if (materialCache.TryGetValue(key, out Material cached)) return cached;
+
+            Texture2D texture = Resources.Load<Texture2D>(texturePath);
+            if (texture == null) return MaterialFor(name, new Color(0.45f, 0.62f, 0.36f));
+
+            Material material = MaterialFor(key, Color.white);
+            if (material.HasProperty("_BaseMap")) material.SetTexture("_BaseMap", texture);
+            if (material.HasProperty("_MainTex")) material.SetTexture("_MainTex", texture);
             return material;
         }
 
