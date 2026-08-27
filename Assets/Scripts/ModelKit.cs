@@ -107,14 +107,23 @@ namespace MiniMart
         /// <summary>
         /// The models ship model_LOD0..LOD4 stacked in one hierarchy with an LODGroup. Keeping a
         /// single mesh avoids five overlapping copies and lets small props use a cheap one.
+        ///
+        /// The LODGroup has to go first, and immediately. It owns the enabled flag on each level's
+        /// renderer, and for something small on screen it picks the cheapest level and switches the
+        /// rest off. A deferred Destroy lets it do that on its way out, which left the level we kept
+        /// disabled for good: props existed in the hierarchy but never drew.
         /// </summary>
         public static void KeepOneLod(GameObject model, int preferredLod)
         {
             LODGroup group = model.GetComponent<LODGroup>();
-            if (group != null) Object.Destroy(group);
+            if (group != null) Object.DestroyImmediate(group);
 
             Renderer[] renderers = model.GetComponentsInChildren<Renderer>(true);
-            if (renderers.Length <= 1) return;
+            if (renderers.Length <= 1)
+            {
+                if (renderers.Length == 1) Show(renderers[0]);
+                return;
+            }
 
             string wanted = "LOD" + Mathf.Clamp(preferredLod, 0, renderers.Length - 1);
             int keep = -1;
@@ -124,12 +133,26 @@ namespace MiniMart
                 keep = i;
                 break;
             }
-            if (keep < 0) return; // not the LOD naming convention, leave it alone
+            if (keep < 0)
+            {
+                // Not the LOD naming convention: leave the meshes alone, just make sure they draw.
+                for (int i = 0; i < renderers.Length; i++) Show(renderers[i]);
+                return;
+            }
 
             for (int i = 0; i < renderers.Length; i++)
             {
                 if (i != keep) Object.Destroy(renderers[i].gameObject);
             }
+            Show(renderers[keep]);
+        }
+
+        /// <summary>Undoes whatever the LODGroup left behind on the level we are keeping.</summary>
+        private static void Show(Renderer renderer)
+        {
+            if (renderer == null) return;
+            renderer.enabled = true;
+            if (!renderer.gameObject.activeSelf) renderer.gameObject.SetActive(true);
         }
 
         public static void Paint(GameObject root, Material material)

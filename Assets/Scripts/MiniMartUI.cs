@@ -192,8 +192,12 @@ namespace MiniMart
                 carryText.text = carry;
             }
 
+            // Someone waiting at an unmanned till is the more urgent of the two, so it wins the line.
+            int waiting = game.Checkout != null && !game.Checkout.IsAttended ? game.Checkout.QueueLength : 0;
             string empty = game.EmptyShelfSummary();
-            string hint = string.IsNullOrEmpty(empty) ? string.Empty : "Empty shelves: " + empty;
+            string hint = waiting > 0
+                ? waiting + (waiting == 1 ? " shopper is" : " shoppers are") + " waiting at the till!"
+                : string.IsNullOrEmpty(empty) ? string.Empty : "Empty shelves: " + empty;
             if (hint != cachedHint)
             {
                 cachedHint = hint;

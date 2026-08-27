@@ -324,7 +324,7 @@ namespace MiniMart
                     return;
 
                 case TargetKind.Checkout:
-                    game.UI.SetNotification("The till scans shoppers on its own, just keep the shelves full.", 2f);
+                    game.UI.SetNotification("Just stand at the counter and the queue is served for you.", 2f);
                     return;
 
                 default:
@@ -407,7 +407,10 @@ namespace MiniMart
                     return;
 
                 case TargetKind.Checkout:
-                    Prompt = "Till: " + game.Checkout.QueueLength + " in the queue";
+                    int queue = game.Checkout.QueueLength;
+                    Prompt = queue == 0
+                        ? "At the till. Shoppers get served while you stand here."
+                        : "Serving " + queue + (queue == 1 ? " shopper" : " shoppers") + "...";
                     return;
 
                 default:
