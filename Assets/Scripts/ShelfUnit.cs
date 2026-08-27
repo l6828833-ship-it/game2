@@ -11,10 +11,12 @@ namespace MiniMart
     {
         private static readonly Vector3[] EggSlotsFour =
         {
-            new Vector3(-0.23f, 0.72f, -0.18f),
-            new Vector3(0.23f, 0.72f, -0.18f),
-            new Vector3(-0.23f, 0.72f, 0.18f),
-            new Vector3(0.23f, 0.72f, 0.18f)
+            // The user table has a diamond layout: one holder at the front and rear,
+            // then one on each side. These coordinates keep every egg inside a round recess.
+            new Vector3(0f, 0.72f, -0.27f),
+            new Vector3(-0.30f, 0.72f, -0.01f),
+            new Vector3(0.30f, 0.72f, -0.01f),
+            new Vector3(0f, 0.72f, 0.27f)
         };
 
         private static readonly Vector3[] EggSlotsSix =
