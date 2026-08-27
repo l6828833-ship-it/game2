@@ -14,6 +14,7 @@ namespace MiniMart
         public static MiniMartGameManager Instance { get; private set; }
 
         public int Money { get; private set; }
+        public bool HasSavedGame { get; private set; }
         public bool EggTableUpgraded => save.eggTableUpgraded;
         public int Day => save.day;
         public float Reputation => save.reputation;
@@ -41,7 +42,9 @@ namespace MiniMart
 
         public readonly List<CustomerAgent> Customers = new List<CustomerAgent>();
 
+        private const string StartFreshKey = "MiniMart.StartFresh";
         private StoreSave save;
+        private bool homeScreenActive;
         private float dayTimer;
         private float closingTimer;
         private float spawnTimer;
@@ -54,6 +57,16 @@ namespace MiniMart
             if (Instance != null && Instance != this) { Destroy(gameObject); return; }
             Instance = this;
             Time.timeScale = 1f;
+            bool startFresh = PlayerPrefs.GetInt(StartFreshKey, 0) == 1;
+            if (startFresh)
+            {
+                PlayerPrefs.DeleteKey(GameConfig.SaveKey);
+                PlayerPrefs.DeleteKey(GameConfig.LegacySaveKey);
+                PlayerPrefs.DeleteKey(StartFreshKey);
+                PlayerPrefs.Save();
+            }
+            HasSavedGame = !startFresh && (PlayerPrefs.HasKey(GameConfig.SaveKey) || PlayerPrefs.HasKey(GameConfig.LegacySaveKey));
+            AudioListener.volume = PlayerPrefs.GetInt("MiniMart.SoundEnabled", 1) == 1 ? 1f : 0f;
             LoadSave();
             InitialisePalette();
             Sfx = MiniMartAudio.Create(transform);
@@ -61,7 +74,18 @@ namespace MiniMart
             UI = MiniMartUI.Create(this);
             Phase = DayPhase.Open;
             spawnTimer = 3f;
-            UI.SetNotification("Day " + save.day + ": harvest on the farm, stock the shelves, keep the queue moving.", 5.5f);
+
+            if (startFresh)
+            {
+                homeScreenActive = false;
+                UI.SetNotification("Welcome to Day 1 — harvest 4 products from the farm.", 5.5f);
+            }
+            else
+            {
+                homeScreenActive = true;
+                Time.timeScale = 0f;
+                MiniMartHomeScreen.Create(this);
+            }
         }
 
         private void OnDestroy()
@@ -72,6 +96,7 @@ namespace MiniMart
         private void Update()
         {
             if (UI == null) return;
+            if (homeScreenActive) return;
             HandleGlobalKeys();
             if (paused) { UI.Refresh(); return; }
             TickDay();
@@ -102,6 +127,28 @@ namespace MiniMart
             }
             resetArmedUntil = Time.unscaledTime + 3f;
             UI.SetNotification("Press F5 again to wipe your save and start over.", 3f);
+        }
+
+        /// <summary>Called only by the title-screen buttons.</summary>
+        public void StartFromHome(bool startNewGame)
+        {
+            if (startNewGame)
+            {
+                // Reloading after the user's confirmation ensures every world object starts clean.
+                PlayerPrefs.SetInt(StartFreshKey, 1);
+                PlayerPrefs.Save();
+                Time.timeScale = 1f;
+                SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+                return;
+            }
+
+            homeScreenActive = false;
+            Time.timeScale = 1f;
+            MiniMartHomeScreen screen = FindFirstObjectByType<MiniMartHomeScreen>();
+            if (screen != null) Destroy(screen.gameObject);
+            UI.SetNotification(HasSavedGame
+                ? "Welcome back — your farm market is ready."
+                : "Day 1 — harvest 4 products from the farm.", 4.5f);
         }
 
         // -------------------------------------------------------------- day cycle
