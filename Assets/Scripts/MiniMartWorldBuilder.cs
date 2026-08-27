@@ -271,8 +271,10 @@ namespace MiniMart
 
         private void BuildChicken(Vector3 position, string name)
         {
-            // The Easy Primitive Animals chicken is already a multi part prefab made from built-in
-            // cubes and spheres with solid colour materials. It needs no scaling or axis correction.
+            // The Easy Primitive Animals chicken is a multi-part primitive prefab, but its materials
+            // use the built-in Standard shader which URP renders magenta. Instead of upgrading twelve
+            // materials on disk, we instantiate it and repaint every renderer with URP materials
+            // carrying the original colours.
             GameObject prefab = Resources.Load<GameObject>(ModelKit.ChickenPrefab);
             if (prefab != null)
             {
@@ -280,14 +282,39 @@ namespace MiniMart
                 hen.name = name;
                 hen.transform.position = position;
                 hen.transform.rotation = Quaternion.Euler(0f, 160f, 0f);
-                // The pack chicken is built at a game ready scale already. A small bump brings it
-                // closer to the height the previous models used.
                 hen.transform.localScale = Vector3.one * 0.85f;
+                RepaintChicken(hen);
                 return;
             }
 
             // Fallback: primitive blobs.
             BuildToyChicken(position, name);
+        }
+
+        /// <summary>
+        /// Maps the pack's built-in shader material names to URP colours so the chicken does not
+        /// render magenta. The pack uses: White (body/wings), Orange (feet/beak), Dark Red (comb),
+        /// Gold (legs), Dark Pink (wattle).
+        /// </summary>
+        private void RepaintChicken(GameObject hen)
+        {
+            Material white = MaterialFor("ChickenWhite", new Color(1f, 1f, 1f));
+            Material orange = MaterialFor("ChickenOrange", new Color(1f, 0.47f, 0.12f));
+            Material darkRed = MaterialFor("ChickenDarkRed", new Color(0.80f, 0.14f, 0.14f));
+            Material gold = MaterialFor("ChickenGold", new Color(1f, 0.86f, 0f));
+            Material darkPink = MaterialFor("ChickenDarkPink", new Color(0.85f, 0.32f, 0.42f));
+
+            foreach (Renderer renderer in hen.GetComponentsInChildren<Renderer>(true))
+            {
+                if (renderer.sharedMaterial == null) { renderer.sharedMaterial = white; continue; }
+                string matName = renderer.sharedMaterial.name;
+                if (matName.Contains("White")) renderer.sharedMaterial = white;
+                else if (matName.Contains("Orange")) renderer.sharedMaterial = orange;
+                else if (matName.Contains("Dark Red")) renderer.sharedMaterial = darkRed;
+                else if (matName.Contains("Gold")) renderer.sharedMaterial = gold;
+                else if (matName.Contains("Dark Pink") || matName.Contains("Pink")) renderer.sharedMaterial = darkPink;
+                else renderer.sharedMaterial = white;
+            }
         }
 
         private void BuildToyChicken(Vector3 position, string label)
