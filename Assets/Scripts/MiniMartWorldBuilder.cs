@@ -15,6 +15,11 @@ namespace MiniMart
             ProductKind.Water, ProductKind.Juice, ProductKind.Cereal, ProductKind.Apple
         };
 
+        /// <summary>Prop sizes in metres. The nest is wide and shallow, so its height stays low.</summary>
+        private const float NestHeight = 0.22f;
+        private const float ChickenHeight = 0.42f;
+        private const float EggHeight = 0.16f;
+
         /// <summary>Free floor space for purchased shelves, in build order.</summary>
         private static readonly Vector2[] ExtraShelfSlots =
         {
@@ -101,10 +106,45 @@ namespace MiniMart
         {
             CreatePrimitive(PrimitiveType.Cube, "Chicken_Coop", position + new Vector3(0f, 0.55f, 0f), new Vector3(3f, 1.1f, 1.65f), MaterialFor("Coop", new Color(0.91f, 0.42f, 0.23f)));
             CreatePrimitive(PrimitiveType.Cylinder, "Chicken_Coop_Roof", position + new Vector3(0f, 1.25f, 0f), new Vector3(1.9f, 0.22f, 1.2f), MaterialFor("CoopRoof", new Color(0.31f, 0.58f, 0.84f)));
-            BuildToyChicken(position + new Vector3(-1.4f, 0f, -1.15f), "Chicken_A");
-            BuildToyChicken(position + new Vector3(-0.5f, 0f, -1.35f), "Chicken_B");
-            BuildToyChicken(position + new Vector3(0.45f, 0f, -1.15f), "Chicken_C");
-            CreateFarmProducer(position + new Vector3(1.55f, 0f, -1.15f), ProductKind.Egg, "Eggs", new Color(1f, 0.96f, 0.74f));
+
+            // The nest is the harvest point: a straw bowl with the egg resting inside it.
+            Vector3 nestSpot = position + new Vector3(1.55f, 0f, -1.15f);
+            Transform nest = ModelKit.SpawnProp(null, ModelKit.NestModel, MaterialFor("NestStraw", new Color(0.83f, 0.66f, 0.34f)),
+                NestHeight, 3, ModelKit.ZUpFix);
+            if (nest != null)
+            {
+                nest.name = "Chicken_Nest";
+                nest.position = nestSpot;
+            }
+
+            FarmProducer eggs = CreateFarmProducer(nestSpot, ProductKind.Egg, "Eggs", new Color(1f, 0.96f, 0.74f),
+                ModelKit.EggModel, EggHeight, nest != null ? NestHeight * 0.42f : 0.5f, nest == null);
+            eggs.ReadySound = SfxKind.Cluck;
+
+            // Hens potter about in front of the coop, each patch within a step or two of the nest.
+            // Their roam radius keeps them clear of the coop wall at z = -0.58.
+            BuildChicken(new Vector3(-13.55f, 0f, -1.30f), eggs, "Hen_A");
+            BuildChicken(new Vector3(-14.45f, 0f, -1.45f), eggs, "Hen_B");
+            BuildChicken(new Vector3(-12.95f, 0f, -1.65f), eggs, "Hen_C");
+        }
+
+        private void BuildChicken(Vector3 position, FarmProducer nest, string name)
+        {
+            GameObject root = new GameObject(name);
+            root.transform.position = position;
+
+            Transform body = ModelKit.SpawnProp(root.transform, ModelKit.ChickenModel,
+                MaterialFor("HenFeathers", new Color(0.96f, 0.93f, 0.86f)), ChickenHeight, 0, ModelKit.ZUpFix);
+            if (body == null)
+            {
+                // No imported hen: fall back to the primitive bird so the coop is not empty.
+                BuildToyChicken(position, name);
+                Destroy(root);
+                return;
+            }
+
+            body.name = "Hen_Body";
+            root.AddComponent<ChickenAgent>().Initialise(body, position, 0.5f, nest);
         }
 
         private void BuildToyChicken(Vector3 position, string label)
@@ -186,13 +226,15 @@ namespace MiniMart
             Shelves.Add(shelf);
         }
 
-        private void CreateFarmProducer(Vector3 position, ProductKind product, string label, Color color)
+        private FarmProducer CreateFarmProducer(Vector3 position, ProductKind product, string label, Color color,
+            string modelPath = null, float modelHeight = 0f, float restHeight = 0.5f, bool showMarker = true)
         {
             GameObject root = new GameObject("FarmHarvest_" + product);
             root.transform.position = position;
             FarmProducer producer = root.AddComponent<FarmProducer>();
-            producer.Initialise(product, label, color);
+            producer.Initialise(product, label, color, modelPath, modelHeight, restHeight, showMarker);
             FarmProducers.Add(producer);
+            return producer;
         }
 
         private void BuildCheckout()

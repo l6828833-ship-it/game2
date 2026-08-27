@@ -431,17 +431,27 @@ namespace MiniMart
 
             if (kind == ProductKind.Egg)
             {
-                GameObject eggAsset = Resources.Load<GameObject>("Items/FarmEgg");
-                if (eggAsset != null)
+                // Same egg mesh as the one sitting in the nest, sized to fit in a hand.
+                Transform egg = ModelKit.SpawnProp(transform, ModelKit.EggModel, material, 0.17f, 3, ModelKit.ZUpFix);
+                if (egg != null)
                 {
-                    GameObject egg = Instantiate(eggAsset, transform);
                     egg.name = "Carry_Item";
-                    egg.transform.localPosition = new Vector3(0f, 0.64f, 0.46f);
-                    egg.transform.localRotation = Quaternion.Euler(0f, 25f, 0f);
-                    egg.transform.localScale = Vector3.one * 0.20f;
-                    foreach (Renderer renderer in egg.GetComponentsInChildren<Renderer>(true)) renderer.sharedMaterial = material;
-                    foreach (Collider collider in egg.GetComponentsInChildren<Collider>(true)) Destroy(collider);
-                    return egg.transform;
+                    egg.localPosition = new Vector3(0f, 0.62f, 0.44f);
+                    egg.localRotation = Quaternion.Euler(0f, 25f, 12f);
+                    return egg;
+                }
+
+                GameObject legacyAsset = Resources.Load<GameObject>(ModelKit.LegacyEggModel);
+                if (legacyAsset != null)
+                {
+                    GameObject legacy = Instantiate(legacyAsset, transform);
+                    legacy.name = "Carry_Item";
+                    legacy.transform.localPosition = new Vector3(0f, 0.64f, 0.46f);
+                    legacy.transform.localRotation = Quaternion.Euler(0f, 25f, 0f);
+                    legacy.transform.localScale = Vector3.one * 0.20f;
+                    ModelKit.Paint(legacy, material);
+                    ModelKit.StripColliders(legacy);
+                    return legacy.transform;
                 }
             }
 

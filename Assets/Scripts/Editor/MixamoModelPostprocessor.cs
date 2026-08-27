@@ -13,6 +13,13 @@ namespace MiniMart.EditorTools
     {
         private const string CharacterFolder = "Assets/Resources/Characters/";
 
+        /// <summary>Folders whose FBX models are static props: no rig, no animation.</summary>
+        private static readonly string[] PropFolders =
+        {
+            "Assets/Resources/Props/",
+            "Assets/Resources/Items/"
+        };
+
         private static readonly string[] AnimatedPlayerAssets =
         {
             CharacterFolder + "FarmPlayerRun.fbx",
@@ -20,6 +27,15 @@ namespace MiniMart.EditorTools
             CharacterFolder + "FarmPlayerCarryIdle.fbx",
             CharacterFolder + "FarmCustomerWalk.fbx"
         };
+
+        private static bool IsProp(string path)
+        {
+            for (int i = 0; i < PropFolders.Length; i++)
+            {
+                if (path.StartsWith(PropFolders[i])) return true;
+            }
+            return false;
+        }
 
         /// <summary>
         /// Safety net for the case where the model is imported before this script has compiled:
@@ -59,8 +75,25 @@ namespace MiniMart.EditorTools
 
         private void OnPreprocessModel()
         {
-            if (!assetPath.StartsWith(CharacterFolder) || !assetPath.EndsWith(".fbx")) return;
+            bool character = assetPath.StartsWith(CharacterFolder);
+            if (!assetPath.EndsWith(".fbx") || (!character && !IsProp(assetPath))) return;
             if (!(assetImporter is ModelImporter importer) || !importer.importSettingsMissing) return;
+
+            // Every one of these models references a normal map the project does not ship, and the
+            // game paints them with its own flat materials anyway.
+            importer.materialImportMode = ModelImporterMaterialImportMode.None;
+            importer.importCameras = false;
+            importer.importLights = false;
+            importer.importVisibility = false;
+
+            if (!character)
+            {
+                // Props are static meshes: no rig, no clips.
+                importer.animationType = ModelImporterAnimationType.None;
+                importer.importAnimation = false;
+                Debug.Log("Configured " + assetPath + " as a static mini mart prop.");
+                return;
+            }
 
             // Generic keeps the clip bound to the rig it shipped with: no avatar mapping to get wrong.
             importer.animationType = ModelImporterAnimationType.Generic;
@@ -68,13 +101,6 @@ namespace MiniMart.EditorTools
             importer.avatarSetup = ModelImporterAvatarSetup.CreateFromThisModel;
             importer.importAnimation = true;
             importer.animationCompression = ModelImporterAnimationCompression.KeyframeReduction;
-
-            // The FBX points at a normal map that is not in the project, and the game paints the
-            // character with its own flat material anyway.
-            importer.materialImportMode = ModelImporterMaterialImportMode.None;
-            importer.importCameras = false;
-            importer.importLights = false;
-            importer.importVisibility = false;
 
             Debug.Log("Configured " + assetPath + " as a generic animated rig for the mini mart player.");
         }
