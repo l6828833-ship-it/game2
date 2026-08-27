@@ -20,6 +20,11 @@ namespace MiniMart
         public const string EggModel = "Items/Egg";
         public const string LegacyEggModel = "Items/FarmEgg";
 
+        public const string CowModel = "Props/CowBlW";
+        public const string SheepModel = "Props/SheepWhite";
+        public const string PigModel = "Props/Pig";
+        public const string DuckModel = "Props/DuckWhite";
+
         /// <summary>
         /// Spawns a static prop under <paramref name="parent"/>: one LOD, righted, scaled to
         /// <paramref name="targetHeight"/>, sitting on the ground with its footprint centred, and

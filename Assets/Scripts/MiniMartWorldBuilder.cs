@@ -20,6 +20,19 @@ namespace MiniMart
         private const float ChickenHeight = 0.42f;
         private const float EggHeight = 0.16f;
 
+        /// <summary>
+        /// Paddock bounds. The north rail sits at z = -7.2, clear of the store floor which starts at
+        /// z = -6, so the fenced field never overlaps the shop or the farm.
+        /// </summary>
+        private const float PastureNorthZ = -7.2f;
+        private const float PastureSouthZ = -13f;
+        private const float PastureWestX = -19f;
+        private const float PastureEastX = 13.5f;
+        private const float PastureCenterX = (PastureWestX + PastureEastX) * 0.5f;
+        private const float PastureCenterZ = (PastureNorthZ + PastureSouthZ) * 0.5f;
+        private const float PastureWidth = PastureEastX - PastureWestX;
+        private const float PastureDepth = PastureNorthZ - PastureSouthZ;
+
         /// <summary>Free floor space for purchased shelves, in build order.</summary>
         private static readonly Vector2[] ExtraShelfSlots =
         {
@@ -56,6 +69,7 @@ namespace MiniMart
             CreatePrimitive(PrimitiveType.Plane, "Pastel Grass", Vector3.zero, new Vector3(5.5f, 1f, 5.5f), MaterialFor("Grass", new Color(0.47f, 0.82f, 0.38f)));
             CreatePrimitive(PrimitiveType.Cube, "Market Floor", new Vector3(3f, 0.04f, 1f), new Vector3(26f, 0.12f, 14f), MaterialFor("Floor", new Color(0.96f, 0.82f, 0.57f)));
             BuildFarm();
+            BuildPasture();
             BuildStoreShell();
             BuildProps();
             BuildShelves();
@@ -128,6 +142,69 @@ namespace MiniMart
             BuildChicken(new Vector3(-12.95f, 0f, -1.65f), eggs, "Hen_C");
         }
 
+        /// <summary>
+        /// The paddock, south of everything else. Livestock can only pick targets inside their own
+        /// patch of it, so they can never wander onto the shop floor or through the crop beds: the
+        /// store starts at z = -6 and the farm at z = -2.4, both north of the fence line.
+        /// </summary>
+        private void BuildPasture()
+        {
+            Material fence = MaterialFor("PastureFence", new Color(0.72f, 0.50f, 0.26f));
+            CreatePrimitive(PrimitiveType.Cube, "Pasture_Ground", new Vector3(PastureCenterX, 0.05f, PastureCenterZ),
+                new Vector3(PastureWidth, 0.1f, PastureDepth), MaterialFor("PastureGrass", new Color(0.52f, 0.84f, 0.36f)));
+
+            // North rail is split so the player can walk in through a gate.
+            BuildFenceLine(new Vector3(-10f, 0f, PastureNorthZ), new Vector3(18f, 0f, 0f), fence, 9);
+            BuildFenceLine(new Vector3(7.5f, 0f, PastureNorthZ), new Vector3(12f, 0f, 0f), fence, 6);
+            BuildFenceLine(new Vector3(PastureCenterX, 0f, PastureSouthZ), new Vector3(PastureWidth, 0f, 0f), fence, 14);
+            BuildFenceLine(new Vector3(PastureWestX, 0f, PastureCenterZ), new Vector3(0f, 0f, PastureDepth), fence, 4);
+            BuildFenceLine(new Vector3(PastureEastX, 0f, PastureCenterZ), new Vector3(0f, 0f, PastureDepth), fence, 4);
+
+            CreatePrimitive(PrimitiveType.Cube, "Water_Trough", new Vector3(-16.5f, 0.22f, -8.6f),
+                new Vector3(1.9f, 0.44f, 0.9f), MaterialFor("Trough", new Color(0.55f, 0.42f, 0.28f)));
+            CreateDecor(PrimitiveType.Cube, "Water_Trough_Water", new Vector3(-16.5f, 0.42f, -8.6f),
+                new Vector3(1.7f, 0.06f, 0.72f), MaterialFor("Water", new Color(0.19f, 0.70f, 0.94f)));
+
+            // Each animal keeps to its own corner so they stay spread across the field.
+            BuildPastureAnimal(ModelKit.CowModel, "Cow", new Vector3(-14.5f, 0f, -10.6f), 3.2f, 1.8f,
+                1.45f, 0.35f, new Color(0.44f, 0.40f, 0.38f), false);
+            BuildPastureAnimal(ModelKit.SheepModel, "Sheep_A", new Vector3(-7.5f, 0f, -9.4f), 2.6f, 1.6f,
+                0.85f, 0.42f, new Color(0.96f, 0.95f, 0.90f), true);
+            BuildPastureAnimal(ModelKit.SheepModel, "Sheep_B", new Vector3(-4.6f, 0f, -11.3f), 2.6f, 1.6f,
+                0.85f, 0.42f, new Color(0.93f, 0.92f, 0.86f), true);
+            BuildPastureAnimal(ModelKit.PigModel, "Pig", new Vector3(1.8f, 0f, -10.9f), 3f, 1.7f,
+                0.70f, 0.5f, new Color(0.96f, 0.62f, 0.66f), true);
+            BuildPastureAnimal(ModelKit.DuckModel, "Duck_A", new Vector3(8f, 0f, -9.2f), 2.4f, 1.5f,
+                0.50f, 0.6f, new Color(0.99f, 0.97f, 0.88f), true);
+            BuildPastureAnimal(ModelKit.DuckModel, "Duck_B", new Vector3(10.6f, 0f, -11f), 2.4f, 1.5f,
+                0.50f, 0.6f, new Color(0.98f, 0.94f, 0.80f), true);
+        }
+
+        private void BuildPastureAnimal(string model, string name, Vector3 home, float patchWidth, float patchDepth,
+            float height, float speed, Color color, bool grazes)
+        {
+            GameObject root = new GameObject("Pasture_" + name);
+            root.transform.position = home;
+
+            Transform body = ModelKit.SpawnProp(root.transform, model, MaterialFor("Hide_" + name, color),
+                height, 0, Vector3.zero);
+            if (body == null)
+            {
+                Destroy(root);
+                return;
+            }
+            body.name = name + "_Body";
+
+            // Clamped so no patch can reach past the rails, whatever the home point is.
+            Rect patch = Rect.MinMaxRect(
+                Mathf.Max(PastureWestX + 0.8f, home.x - patchWidth * 0.5f),
+                Mathf.Max(PastureSouthZ + 0.8f, home.z - patchDepth * 0.5f),
+                Mathf.Min(PastureEastX - 0.8f, home.x + patchWidth * 0.5f),
+                Mathf.Min(PastureNorthZ - 0.8f, home.z + patchDepth * 0.5f));
+
+            root.AddComponent<RoamingAnimal>().Initialise(body, patch, speed, height * 0.035f, grazes);
+        }
+
         private void BuildChicken(Vector3 position, FarmProducer nest, string name)
         {
             GameObject root = new GameObject(name);
@@ -144,7 +221,10 @@ namespace MiniMart
             }
 
             body.name = "Hen_Body";
-            root.AddComponent<ChickenAgent>().Initialise(body, position, 0.5f, nest);
+            // A small patch in front of the coop: the roam never reaches the wall at z = -0.58.
+            Rect patch = new Rect(position.x - 0.5f, position.z - 0.5f, 1f, 1f);
+            root.AddComponent<RoamingAnimal>().Initialise(body, patch, Random.Range(0.35f, 0.6f),
+                ChickenHeight * 0.08f, true, nest);
         }
 
         private void BuildToyChicken(Vector3 position, string label)
